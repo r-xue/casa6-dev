@@ -7,6 +7,7 @@ on:
       - 'fix/*'
       - 'feature/*'
       - 'release/*'
+      - 'ci/*'
     paths-ignore:
       - '**.md'
       - 'docs/**'
