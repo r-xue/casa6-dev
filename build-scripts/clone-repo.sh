@@ -16,12 +16,12 @@ echo "Cloning CASA6 repository..."
 DEVELOPMENT_MODE=${CASA_DEVELOPMENT_MODE:-false}
 
 # Check for branch/tag specification
-if [[ -z "${CASA_BRANCH:-}" ]] && [[ -d "src/casa6/.git" ]]; then
-    # Use current branch if no branch specified and repo exists
-    CASA_BRANCH=$(cd src/casa6 && git branch --show-current 2>/dev/null || echo "master")
-    echo "No CASA_BRANCH specified, staying on current branch: $CASA_BRANCH"
-else
-    CASA_BRANCH=${CASA_BRANCH:-master}
+CASA_BRANCH=${CASA_BRANCH:-}
+if [[ -z "$CASA_BRANCH" ]] && [[ -d "src/casa6/.git" ]]; then
+    CASA_BRANCH=$(cd src/casa6 && git branch --show-current 2>/dev/null || echo "")
+    if [[ -n "$CASA_BRANCH" ]]; then
+        echo "No CASA_BRANCH specified, staying on current branch: $CASA_BRANCH"
+    fi
 fi
 
 if [ ! -d "src" ]; then
@@ -30,13 +30,14 @@ fi
 
 cd src
 
-if [ ! -d "casa6" ]; then
+if [ ! -d "casa6/.git" ]; then
     echo "Cloning fresh repository..."
+    rm -rf casa6
     git clone https://open-bitbucket.nrao.edu/scm/casa/casa6.git
     cd casa6
     
-    # Checkout specified branch/tag
-    if [[ "$CASA_BRANCH" != "master" ]]; then
+    # Checkout specified branch/tag if provided
+    if [[ -n "$CASA_BRANCH" ]]; then
         echo "Checking out branch/tag: $CASA_BRANCH"
         git checkout "$CASA_BRANCH"
     fi
