@@ -102,9 +102,15 @@ jobs:
 
       - name: Verify installation and Python bindings
         run: |
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatools; print('✓ casatools version:', casatools.version())"
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "from casatools import sakura; s = sakura(); print('✓ sakura module:', s)"
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatasks; print('✓ casatasks imported successfully')"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} bash -c '
+            if [ -d "$CONDA_PREFIX/targets/x86_64-linux/lib/stubs" ]; then
+              ln -sf libcuda.so "$CONDA_PREFIX/targets/x86_64-linux/lib/stubs/libcuda.so.1" 2>/dev/null || true
+              export LD_LIBRARY_PATH="$CONDA_PREFIX/targets/x86_64-linux/lib/stubs:${LD_LIBRARY_PATH:-}"
+            fi
+            python -c "import casatools; print(\"✓ casatools version:\", casatools.version())"
+            python -c "from casatools import sakura; s = sakura(); print(\"✓ sakura module:\", s)"
+            python -c "import casatasks; print(\"✓ casatasks imported successfully\")"
+          '
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
