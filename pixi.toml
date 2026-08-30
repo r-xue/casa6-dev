@@ -166,6 +166,16 @@ jupyter = "*"
 matplotlib = "*"
 
 # ============================================================
+# GPU Support (Optional)
+# ============================================================
+[feature.gpu.dependencies]
+kokkos = ">=4.0"
+cuda-nvcc = "*"
+
+[feature.gpu.activation.env]
+CASA_ENABLE_GPU = "1"
+
+# ============================================================
 # Environments
 #
 # Naming convention:
@@ -191,6 +201,7 @@ linux-dev   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"} 
 linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
 linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
 linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
+linux-gpu   = {features = ["linux", "py312", "dev", "gpu"], solve-group = "linux-gpu"}
 
 # ---- ARM Mac environments (default: py312) ----
 arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}  # default
@@ -208,6 +219,7 @@ build-linux      = {features = ["linux",     "py312"], solve-group = "build-linu
 build-linux-311  = {features = ["linux",     "py311"], solve-group = "build-linux-311"}
 build-linux-312  = {features = ["linux",     "py312"], solve-group = "build-linux-312"}
 build-linux-313  = {features = ["linux",     "py313"], solve-group = "build-linux-313"}
+build-linux-gpu  = {features = ["linux",     "py312", "gpu"], solve-group = "build-linux-gpu"}
 build-arm        = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}   # default
 build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "build-arm-311"}
 build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}
@@ -227,8 +239,9 @@ update-submodules = "cd src/casa6 && git submodule update --recursive"
 fix-install-name-dir = "bash build-scripts/fix-install-name-dir.sh"
 build-casacore    = {cmd = "bash build-scripts/build-casacore.sh", depends-on = ["fix-install-name-dir"]}
 fix-protobuf-cmake = "bash build-scripts/fix-protobuf-cmake.sh"
-build-casacpp     = {cmd = "bash build-scripts/build-casacpp.sh", depends-on = ["fix-protobuf-cmake", "fix-install-name-dir"]}
-build-casatools   = {cmd = "bash build-scripts/build-casatools.sh", depends-on = ["fix-protobuf-cmake", "fix-install-name-dir"]}
+build-hpg         = "bash build-scripts/build-hpg.sh"
+build-casacpp     = {cmd = "bash build-scripts/build-casacpp.sh", depends-on = ["fix-protobuf-cmake", "fix-install-name-dir", "build-hpg"]}
+build-casatools   = {cmd = "bash build-scripts/build-casatools.sh", depends-on = ["fix-protobuf-cmake", "fix-install-name-dir", "build-hpg"]}
 build-casatasks   = "bash build-scripts/build-casatasks.sh"
 build-all         = {depends-on = ["clone-repo", "build-casacore", "build-casacpp", "build-casatools", "build-casatasks"]}
 build-dev         = {depends-on = ["clone-dev", "build-casacore", "build-casacpp", "build-casatools", "build-casatasks"]}
@@ -245,6 +258,10 @@ test              = "python -m pytest tests/"
 [tasks.build-linux]
 cmd = "pixi run -e linux-dev build-all"
 description = "Build for Linux (default Python 3.12)"
+
+[tasks.build-gpu]
+cmd = "pixi run -e linux-gpu build-all"
+description = "Build for Linux with GPU (HPG/Kokkos) support (default Python 3.12)"
 
 [tasks.build-arm]
 cmd = "pixi run -e arm-mac build-all"

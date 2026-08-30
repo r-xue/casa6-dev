@@ -10,7 +10,7 @@ if [[ -z "${CONDA_PREFIX:-}" ]]; then
     exit 1
 fi
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 echo "Project root: $PROJECT_ROOT"
 echo "Using conda environment: $CONDA_PREFIX"
 
@@ -42,6 +42,7 @@ else
     # Linux specific settings
     export CC="${CC:-gcc}"
     export CXX="${CXX:-g++}"
+
     export FC="${FC:-gfortran}"
     export CPPFLAGS="-I$CONDA_PREFIX/include ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"

@@ -47,3 +47,4 @@ apply_patch_simple "casatools-py312-swig-typemaps.patch" "casatools Python 3.12 
 apply_patch_simple "casatools-msmetadata-counting-iterator.patch" "casatools msmetadata counting_iterator operator== for C++17/libc++"
 
 echo "All patch operations completed"
+apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix out of bounds pointer access when CF is unpolarized"
