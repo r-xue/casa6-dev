@@ -181,6 +181,13 @@ libcufft-dev = "*"
 
 [feature.gpu.activation.env]
 CASA_ENABLE_GPU = "1"
+# Target CUDA compute capability:
+#   sm_80: A100 / Ampere (CC 8.0 baseline)
+#   sm_86: RTX 30-series / A4000 / A6000
+#   sm_89: RTX 40-series / L40 / Ada
+#   sm_90: H100 / Hopper
+#   sm_70: V100 / Volta
+CASA_GPU_ARCH = "sm_80"
 
 # ============================================================
 # Environments

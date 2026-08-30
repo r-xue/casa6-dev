@@ -1,0 +1,30 @@
+diff --git casatools/src/code/synthesis/ImagerObjects/SynthesisImagerVi2.cc casatools/src/code/synthesis/ImagerObjects/SynthesisImagerVi2.cc
+index 4ab402b43..7a21d628c 100644
+--- casatools/src/code/synthesis/ImagerObjects/SynthesisImagerVi2.cc
++++ casatools/src/code/synthesis/ImagerObjects/SynthesisImagerVi2.cc
+@@ -107,6 +107,8 @@
+ #ifdef USE_HPG
+ #include <hpg/hpg.hpp>
+ #include <dlfcn.h>
++#include <cstdlib>
++#include <mutex>
+ #endif
+ 
+ 
+@@ -3735,8 +3737,15 @@ void SynthesisImagerVi2::unlockMSs()
+     bool rstat = false;
+ #ifdef USE_HPG
+     try {
+-      if (!hpg::is_initialized())
++      if (!hpg::is_initialized()) {
+         hpg::initialize();
++        static std::once_flag hpg_exit_flag;
++        std::call_once(hpg_exit_flag, []() {
++          std::atexit([]() {
++            if (hpg::is_initialized()) hpg::finalize();
++          });
++        });
++      }
+       auto devices = hpg::devices();
+       // cerr << "DEvices " << devices << endl;
+       rstat = true;
