@@ -26,6 +26,7 @@ export CASACPP_ROOT="$CONDA_PREFIX"
 export CASA_BUILD_TYPE="Release"
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
+export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
 
 # ccache configuration - use project-wide ccache directory
 export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
@@ -61,6 +62,7 @@ ccache --show-stats
 echo "Build environment:"
 echo "  CASACPP_ROOT=$CASACPP_ROOT"
 echo "  CASA_BUILD_TYPE=$CASA_BUILD_TYPE"
+echo "  CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL"
 echo "  CC=$CC"
 echo "  CXX=$CXX"
 echo "  CCACHE_DIR=$CCACHE_DIR"
