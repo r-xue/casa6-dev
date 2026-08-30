@@ -46,5 +46,6 @@ apply_patch_simple "casacpp-remove-pipe.patch" "remove casacpp -pipe flag which 
 apply_patch_simple "casatools-py312-swig-typemaps.patch" "casatools Python 3.12 SWIG typemaps compatibility"
 apply_patch_simple "casatools-msmetadata-counting-iterator.patch" "casatools msmetadata counting_iterator operator== for C++17/libc++"
 
+apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix HPG silent gridder failure and dynamic device fallback"
+
 echo "All patch operations completed"
-apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix out of bounds pointer access when CF is unpolarized"

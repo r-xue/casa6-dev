@@ -1,7 +1,13 @@
 [workspace]
 name = "casa6-dev"
 channels = ["conda-forge"]
-platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
+platforms = [
+    "linux-aarch64", 
+    "osx-64", 
+    "osx-arm64", 
+    { name = "linux-64-cuda", platform = "linux-64", cuda = "12" },
+    "linux-64"
+]
 
 [activation.env]
 CMAKE_GENERATOR = "Ninja"
@@ -169,8 +175,9 @@ matplotlib = "*"
 # GPU Support (Optional)
 # ============================================================
 [feature.gpu.dependencies]
-kokkos = ">=4.0"
+kokkos = { version = ">=4.0", build = "*cuda*" }
 cuda-nvcc = "*"
+libcufft-dev = "*"
 
 [feature.gpu.activation.env]
 CASA_ENABLE_GPU = "1"
@@ -201,7 +208,7 @@ linux-dev   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"} 
 linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
 linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
 linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
-linux-gpu   = {features = ["linux", "py312", "dev", "gpu"], solve-group = "linux-gpu"}
+linux-gpu   = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"]}
 
 # ---- ARM Mac environments (default: py312) ----
 arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}  # default
@@ -219,7 +226,7 @@ build-linux      = {features = ["linux",     "py312"], solve-group = "build-linu
 build-linux-311  = {features = ["linux",     "py311"], solve-group = "build-linux-311"}
 build-linux-312  = {features = ["linux",     "py312"], solve-group = "build-linux-312"}
 build-linux-313  = {features = ["linux",     "py313"], solve-group = "build-linux-313"}
-build-linux-gpu  = {features = ["linux",     "py312", "gpu"], solve-group = "build-linux-gpu"}
+build-linux-gpu  = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"]}
 build-arm        = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}   # default
 build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "build-arm-311"}
 build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}
@@ -260,7 +267,7 @@ cmd = "pixi run -e linux-dev build-all"
 description = "Build for Linux (default Python 3.12)"
 
 [tasks.build-gpu]
-cmd = "pixi run -e linux-gpu build-all"
+cmd = "pixi run --platform linux-64-cuda -e linux-gpu build-all"
 description = "Build for Linux with GPU (HPG/Kokkos) support (default Python 3.12)"
 
 [tasks.build-arm]
