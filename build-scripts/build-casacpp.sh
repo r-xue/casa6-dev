@@ -136,6 +136,17 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 echo "  Source directory: ../../$CASACPP_SOURCE_DIR"
 
+# Testing toggle (default: false / disabled for fast builds)
+# Can be enabled via environment variable: CASA_BUILD_TESTS=true or BUILD_TESTING=true/ON
+BUILD_TESTS="${CASA_BUILD_TESTS:-${BUILD_TESTING:-false}}"
+if [[ "$BUILD_TESTS" == "true" || "$BUILD_TESTS" == "TRUE" || "$BUILD_TESTS" == "ON" || "$BUILD_TESTS" == "1" ]]; then
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=ON"
+    echo "C++ testing: ENABLED"
+else
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=OFF -DCMAKE_PROJECT_casacpp_INCLUDE=$PROJECT_ROOT/build-scripts/cmake/casacpp-no-tests.cmake"
+    echo "C++ testing: DISABLED (set CASA_BUILD_TESTS=true to enable)"
+fi
+
 # Configure with CMake
 echo "Configuring with CMake..."
 cmake ../../$CASACPP_SOURCE_DIR \
@@ -149,6 +160,7 @@ cmake ../../$CASACPP_SOURCE_DIR \
     -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
     -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" \
     -DCMAKE_INCLUDE_PATH="$CONDA_PREFIX/include;$(pwd)/../../casatools" \
+    $CMAKE_TEST_FLAGS \
     $CMAKE_EXTRA_FLAGS
 
 # Determine number of cores for parallel build

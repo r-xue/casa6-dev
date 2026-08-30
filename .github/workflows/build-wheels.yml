@@ -40,11 +40,11 @@ jobs:
             environment: arm-mac
             arch: osx-arm64
 
-          # macOS Intel (x86_64)
-          - name: macOS Intel (Python 3.11)
-            os: macos-15-intel
-            environment: intel-mac
-            arch: osx-64
+          # macOS Intel (x86_64) - commented out due to small user base
+          # - name: macOS Intel (Python 3.11)
+          #   os: macos-15-intel
+          #   environment: intel-mac
+          #   arch: osx-64
 
           # Linux x86_64
           - name: Linux x86_64 (Python 3.12)
