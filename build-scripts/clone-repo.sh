@@ -31,9 +31,9 @@ fi
 cd src
 
 if [ ! -d "casa6/.git" ]; then
-    echo "Cloning fresh repository..."
+    echo "Cloning fresh repository (blobless clone)..."
     rm -rf casa6
-    git clone https://open-bitbucket.nrao.edu/scm/casa/casa6.git
+    git clone --filter=blob:none https://open-bitbucket.nrao.edu/scm/casa/casa6.git
     cd casa6
     
     # Checkout specified branch/tag if provided
@@ -43,8 +43,7 @@ if [ ! -d "casa6/.git" ]; then
     fi
 
     echo "Initializing and updating git submodules..."
-    git submodule init
-    git submodule update --recursive
+    git submodule update --init --recursive --jobs 4 --depth 1
     
     # Apply local patches after initial clone
     if [[ -f "../../patches/apply-patches.sh" ]]; then
@@ -62,8 +61,7 @@ else
         # Still check submodules in development mode
         if [[ -d ".git" ]] && [[ ! -f "casatools/casacore/CMakeLists.txt" ]]; then
             echo "Submodules appear to be missing, updating them..."
-            git submodule init
-            git submodule update --recursive
+            git submodule update --init --recursive --jobs 4 --depth 1
         fi
     else
         if [[ -d ".git" ]]; then
@@ -84,8 +82,7 @@ else
             }
 
             echo "Updating git submodules..."
-            git submodule init
-            git submodule update --recursive
+            git submodule update --init --recursive --jobs 4 --depth 1
             
             # Apply local patches after update
             if [[ -f "../../patches/apply-patches.sh" ]]; then
