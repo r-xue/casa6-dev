@@ -26,26 +26,27 @@ export CASACPP_ROOT="$CONDA_PREFIX"
 export CASA_BUILD_TYPE="Release"
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
+export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
 
 # ccache configuration - use project-wide ccache directory
 export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
 export CCACHE_MAXSIZE="15G"
 export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    export CC="ccache clang"
-    export CXX="ccache clang++"
+    export CC="clang"
+    export CXX="clang++"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"
     export CFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CFLAGS:-}"
 else
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
 fi
@@ -61,6 +62,7 @@ ccache --show-stats
 echo "Build environment:"
 echo "  CASACPP_ROOT=$CASACPP_ROOT"
 echo "  CASA_BUILD_TYPE=$CASA_BUILD_TYPE"
+echo "  CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL"
 echo "  CC=$CC"
 echo "  CXX=$CXX"
 echo "  CCACHE_DIR=$CCACHE_DIR"
@@ -69,32 +71,8 @@ echo "  CXXFLAGS=$CXXFLAGS"
 echo "  CPPFLAGS=$CPPFLAGS"
 echo "  LDFLAGS=$LDFLAGS"
 
-# Try building with explicit build directory creation
-echo "Building casatools with setuptools..."
-
-# First, try the standard build process
-python setup.py build_ext --inplace || {
-    echo "Standard build failed, trying alternative approach..."
-    
-    # Create the expected build directory structure manually
-    echo "Creating build directory structure manually..."
-    mkdir -p build/lib.*/casatools
-    
-    # Try building again
-    python setup.py build_ext --inplace || {
-        echo "Build still failing, trying with different Python build approach..."
-        
-        # Try using pip build instead
-        pip install -e . --no-deps || {
-            echo "All build approaches failed. Manual intervention may be required."
-            echo "Check the casatools setup.py configuration and build requirements."
-            exit 1
-        }
-    }
-}
-
-# If we get here, one of the build approaches worked
-echo "Building wheel..."
+# Build casatools wheel
+echo "Building casatools wheel..."
 python setup.py bdist_wheel
 
 # Install the wheel

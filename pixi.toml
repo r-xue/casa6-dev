@@ -1,7 +1,12 @@
 [workspace]
 name = "casa6-dev"
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-64", "osx-arm64"]
+platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
+
+[activation.env]
+CMAKE_GENERATOR = "Ninja"
+CMAKE_C_COMPILER_LAUNCHER = "ccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 
 # ============================================================
 # Base dependencies (no python pin here — features own that)
@@ -65,6 +70,7 @@ pytest = "*"
 casaconfig = "*"  # Pure Python package that casatools depends on
 pyerfa = "*"
 scipy = "*"
+matplotlib = "*"
 
 # Additional tools
 git = "*"
@@ -85,6 +91,14 @@ gfortran_linux-64 = "*"  # Fortran compiler for Linux
 libgomp = "*"  # OpenMP support (Linux)
 pytest-xvfb = "*"  # For headless testing on Linux
 swig = "*"    # Does casatools build with SWIG 4???????
+
+[target.linux-aarch64.dependencies]
+gcc_linux-aarch64 = "*"
+gxx_linux-aarch64 = "*"
+gfortran_linux-aarch64 = "*"  # Fortran compiler for ARM Linux
+libgomp = "*"  # OpenMP support (Linux)
+pytest-xvfb = "*"  # For headless testing on Linux
+swig = "*"
 
 [target.osx-64.dependencies]
 clang = "*"
@@ -115,7 +129,7 @@ platforms = ["osx-64"]
 platforms = ["osx-arm64"]
 
 [feature.linux]
-platforms = ["linux-64"]
+platforms = ["linux-64", "linux-aarch64"]
 
 # ============================================================
 # Python version features
@@ -150,7 +164,6 @@ numpy = ">=2.0"
 [feature.dev.dependencies]
 ipython = "*"
 jupyter = "*"
-matplotlib = "*"
 
 # ============================================================
 # Environments
@@ -179,7 +192,7 @@ linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
 linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
 linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
 
-# ---- ARM Mac environments (default: py311) ----
+# ---- ARM Mac environments (default: py312) ----
 arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}  # default
 arm-311     = {features = ["arm-mac", "py311", "dev"], solve-group = "arm-311"}
 arm-312     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}

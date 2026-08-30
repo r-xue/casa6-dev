@@ -23,8 +23,8 @@ cd build
 # Platform-specific configuration
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
-    export CC="ccache clang"
-    export CXX="ccache clang++"
+    export CC="clang"
+    export CXX="clang++"
     export FC=gfortran
     
     # Set OpenMP flags for macOS
@@ -40,11 +40,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     
 else
     # Linux specific settings
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export FC="${FC:-gfortran}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
     export CPPFLAGS="-I$CONDA_PREFIX/include ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     
@@ -55,6 +53,8 @@ fi
 export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
 export CCACHE_MAXSIZE="15G"
 export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."
@@ -73,6 +73,17 @@ echo "  LDFLAGS=$LDFLAGS"
 echo "  CCACHE_DIR=$CCACHE_DIR"
 echo "  CCACHE_MAXSIZE=$CCACHE_MAXSIZE"
 
+# Testing toggle (default: false / disabled for fast builds)
+# Can be enabled via environment variable: CASA_BUILD_TESTS=true or BUILD_TESTING=true/ON
+BUILD_TESTS="${CASA_BUILD_TESTS:-${BUILD_TESTING:-false}}"
+if [[ "$BUILD_TESTS" == "true" || "$BUILD_TESTS" == "TRUE" || "$BUILD_TESTS" == "ON" || "$BUILD_TESTS" == "1" ]]; then
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=ON -DBUILD_APPS=ON"
+    echo "C++ testing: ENABLED"
+else
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=OFF -DBUILD_APPS=OFF"
+    echo "C++ testing: DISABLED (set CASA_BUILD_TESTS=true to enable)"
+fi
+
 # Configure casacore with CMake
 echo "Configuring casacore with CMake..."
 cmake .. \
@@ -87,21 +98,12 @@ cmake .. \
     -DUSE_OPENMP=ON \
     -DUSE_THREADS=ON \
     -DBoost_NO_BOOST_CMAKE=ON \
+    $CMAKE_TEST_FLAGS \
     $CMAKE_EXTRA_FLAGS
 
-# Determine number of cores for parallel build
-if command -v nproc &> /dev/null; then
-    NCORES=$(nproc)
-elif command -v sysctl &> /dev/null; then
-    NCORES=$(sysctl -n hw.ncpu)
-else
-    NCORES=4
-fi
-
-echo "Building casacore with $NCORES parallel jobs..."
-
 # Build
-cmake --build . --parallel $NCORES
+echo "Building casacore in parallel..."
+cmake --build . --parallel
 
 # Install
 echo "Installing casacore..."

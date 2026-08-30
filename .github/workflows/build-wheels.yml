@@ -1,0 +1,104 @@
+name: Build CASA6 Wheels (Multi-Arch)
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/*'
+      - 'feature/*'
+      - 'release/*'
+      - 'ci/*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      casa_branch:
+        description: 'CASA6 branch or tag to build (leave empty for upstream default)'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-wheels:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Apple Silicon (ARM64)
+          - name: macOS ARM64 (Python 3.12)
+            os: macos-14
+            environment: build-arm
+            arch: osx-arm64
+
+          # macOS Intel (x86_64) - commented out due to small user base
+          # - name: macOS Intel (Python 3.11)
+          #   os: macos-15-intel
+          #   environment: build-intel
+          #   arch: osx-64
+
+          # Linux x86_64
+          - name: Linux x86_64 (Python 3.12)
+            os: ubuntu-24.04
+            environment: build-linux
+            arch: linux-64
+
+          # Linux ARM64
+          - name: Linux ARM64 (Python 3.12)
+            os: ubuntu-24.04-arm
+            environment: build-linux
+            arch: linux-aarch64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          environments: ${{ matrix.environment }}
+          cache: true
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: tmp/ccache
+          key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.arch }}-${{ matrix.environment }}-
+
+      - name: Clone CASA6 source and submodules
+        env:
+          CASA_BRANCH: ${{ inputs.casa_branch }}
+        run: |
+          pixi run -e ${{ matrix.environment }} clone-repo
+
+      - name: Build all components (casacore, casacpp, casatools, casatasks)
+        run: |
+          pixi run -e ${{ matrix.environment }} build-all
+
+      - name: Verify installation and Python bindings
+        run: |
+          pixi run -e ${{ matrix.environment }} python -c "import casatools; print('✓ casatools version:', casatools.version())"
+          pixi run -e ${{ matrix.environment }} python -c "from casatools import sakura; s = sakura(); print('✓ sakura module:', s)"
+          pixi run -e ${{ matrix.environment }} python -c "import casatasks; print('✓ casatasks imported successfully')"
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: casa6-wheels-${{ matrix.arch }}
+          path: |
+            src/casa6/casatools/dist/*.whl
+            src/casa6/casatasks/dist/*.whl
+          if-no-files-found: error
+

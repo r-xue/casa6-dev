@@ -41,9 +41,9 @@ cd build/casacpp
 # Platform-specific configuration
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
-    export CC="ccache clang"
-    export CXX="ccache clang++"
-    export FC=gfortran  # Set Fortran compiler (ccache doesn't work well with gfortran)
+    export CC="clang"
+    export CXX="clang++"
+    export FC=gfortran  # Set Fortran compiler
     
     # Set OpenMP flags for macOS (handle unset variables properly)
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
@@ -52,11 +52,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS-specific compiler flags to handle deprecation warnings
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"
     export CFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CFLAGS:-}"
-    
-    # ccache configuration
-    export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-    export CCACHE_MAXSIZE="15G"
-    export CCACHE_COMPRESS=1
     
     # CMake flags - let CMake use environment variables for compilers
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=gfortran -DOpenMP_ROOT=$CONDA_PREFIX"
@@ -89,18 +84,11 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
 else
     # Linux specific settings
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export FC="${FC:-gfortran}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
-    
-    # ccache configuration
-    export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-    export CCACHE_MAXSIZE="15G"
-    export CCACHE_COMPRESS=1
     
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=$FC -DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch"
 
@@ -113,6 +101,13 @@ else
     CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_INSTALL_RPATH=\$ORIGIN/../lib:$CONDA_PREFIX/lib"
     CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON"
 fi
+
+# ccache configuration
+export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
+export CCACHE_MAXSIZE="15G"
+export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."
@@ -136,6 +131,17 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 echo "  Source directory: ../../$CASACPP_SOURCE_DIR"
 
+# Testing toggle (default: false / disabled for fast builds)
+# Can be enabled via environment variable: CASA_BUILD_TESTS=true or BUILD_TESTING=true/ON
+BUILD_TESTS="${CASA_BUILD_TESTS:-${BUILD_TESTING:-false}}"
+if [[ "$BUILD_TESTS" == "true" || "$BUILD_TESTS" == "TRUE" || "$BUILD_TESTS" == "ON" || "$BUILD_TESTS" == "1" ]]; then
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=ON"
+    echo "C++ testing: ENABLED"
+else
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=OFF -DCMAKE_PROJECT_casacpp_INCLUDE=$PROJECT_ROOT/build-scripts/cmake/casacpp-no-tests.cmake"
+    echo "C++ testing: DISABLED (set CASA_BUILD_TESTS=true to enable)"
+fi
+
 # Configure with CMake
 echo "Configuring with CMake..."
 cmake ../../$CASACPP_SOURCE_DIR \
@@ -149,21 +155,12 @@ cmake ../../$CASACPP_SOURCE_DIR \
     -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
     -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" \
     -DCMAKE_INCLUDE_PATH="$CONDA_PREFIX/include;$(pwd)/../../casatools" \
+    $CMAKE_TEST_FLAGS \
     $CMAKE_EXTRA_FLAGS
 
-# Determine number of cores for parallel build
-if command -v nproc &> /dev/null; then
-    NCORES=$(nproc)
-elif command -v sysctl &> /dev/null; then
-    NCORES=$(sysctl -n hw.ncpu)
-else
-    NCORES=4
-fi
-
-echo "Building with $NCORES parallel jobs..."
-
 # Build
-cmake --build . --parallel $NCORES
+echo "Building casacpp in parallel..."
+cmake --build . --parallel
 
 # Install
 echo "Installing casacpp..."

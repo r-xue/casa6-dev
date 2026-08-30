@@ -79,7 +79,10 @@ cmake .. \
     -DSIMD_ARCH=GENERIC \
     -DENABLE_TEST:BOOL=OFF
 
-make
-make install
+echo "Building libsakura in parallel..."
+cmake --build . --parallel
+
+echo "Installing libsakura..."
+cmake --build . --target install
 
 echo "libsakura installed to $CONDA_PREFIX"
