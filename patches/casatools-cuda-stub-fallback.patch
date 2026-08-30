@@ -1,0 +1,52 @@
+--- casatools/setup.py
++++ casatools/setup.py
+@@ -241,6 +241,15 @@
+             else:
+                 print(f"Warning: libgcc directory {gcc_dir} not found, skipping libgcc copy")
+ 
++        # Copy CUDA driver stub on Linux GPU builds for runtime CPU fallback on driver-less machines
++        if sys.platform.startswith('linux') and os.environ.get('CASA_ENABLE_GPU') == '1':
++            stub_src = os.path.join(os.environ.get('CONDA_PREFIX', ''), 'targets', 'x86_64-linux', 'lib', 'stubs', 'libcuda.so')
++            if os.path.isfile(stub_src):
++                stub_dst_dir = os.path.join(extdir, 'casatools', '__casac__', 'lib', 'stubs')
++                os.makedirs(stub_dst_dir, exist_ok=True)
++                shutil.copy2(stub_src, os.path.join(stub_dst_dir, 'libcuda.so'))
++                print(f"Bundled CUDA driver stub to {stub_dst_dir}")
++
+         # Collect all the libraries in a private directory and set relative rpaths
+         if mod_closure:
+             if isexe("scripts/mod-closure"):
+--- casatools/src/casatools/__init__.py
++++ casatools/src/casatools/__init__.py
+@@ -41,6 +41,31 @@
+             'spectralline',
+             'wvr'
+           ]
++
++# Ensure libcuda.so.1 can be resolved before loading C++ bindings (__casac__)
++def __ensure_cuda_driver():
++    import ctypes
++    import os
++    try:
++        # Try loading host system's NVIDIA driver
++        ctypes.CDLL('libcuda.so.1')
++    except OSError:
++        # No NVIDIA driver on host system. Preload the bundled CUDA driver stub with RTLD_GLOBAL
++        pkg_dir = os.path.dirname(__file__)
++        stub_candidates = [
++            os.path.join(pkg_dir, '__casac__', 'lib', 'stubs', 'libcuda.so'),
++            os.path.join(os.environ.get('CONDA_PREFIX', ''), 'targets', 'x86_64-linux', 'lib', 'stubs', 'libcuda.so'),
++        ]
++        for stub in stub_candidates:
++            if os.path.isfile(stub):
++                try:
++                    ctypes.CDLL(stub, mode=ctypes.RTLD_GLOBAL)
++                    break
++                except Exception:
++                    pass
++
++__ensure_cuda_driver()
++
+ from .image import image
+ from .logsink import logsink
+ from .coordsys import coordsys

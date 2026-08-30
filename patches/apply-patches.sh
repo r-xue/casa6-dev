@@ -47,5 +47,6 @@ apply_patch_simple "casatools-py312-swig-typemaps.patch" "casatools Python 3.12 
 apply_patch_simple "casatools-msmetadata-counting-iterator.patch" "casatools msmetadata counting_iterator operator== for C++17/libc++"
 
 apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix HPG silent gridder failure and dynamic device fallback"
+apply_patch_simple "casatools-cuda-stub-fallback.patch" "casatools CUDA driver stub bundling and runtime CPU fallback"
 
 echo "All patch operations completed"
