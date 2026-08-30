@@ -41,9 +41,9 @@ cd build/casacpp
 # Platform-specific configuration
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
-    export CC="ccache clang"
-    export CXX="ccache clang++"
-    export FC=gfortran  # Set Fortran compiler (ccache doesn't work well with gfortran)
+    export CC="clang"
+    export CXX="clang++"
+    export FC=gfortran  # Set Fortran compiler
     
     # Set OpenMP flags for macOS (handle unset variables properly)
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
@@ -89,11 +89,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
 else
     # Linux specific settings
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export FC="${FC:-gfortran}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     

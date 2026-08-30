@@ -36,17 +36,15 @@ export CCACHE_COMPRESS=1
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    export CC="ccache clang"
-    export CXX="ccache clang++"
+    export CC="clang"
+    export CXX="clang++"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"
     export CFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CFLAGS:-}"
 else
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
 fi

@@ -5,6 +5,10 @@ platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
 
 [activation.env]
 CMAKE_GENERATOR = "Ninja"
+CMAKE_C_COMPILER_LAUNCHER = "ccache"
+CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
+CCACHE_BASEDIR = "."
+CCACHE_NOHASHDIR = "true"
 
 # ============================================================
 # Base dependencies (no python pin here — features own that)
