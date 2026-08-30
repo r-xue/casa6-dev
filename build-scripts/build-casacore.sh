@@ -101,19 +101,9 @@ cmake .. \
     $CMAKE_TEST_FLAGS \
     $CMAKE_EXTRA_FLAGS
 
-# Determine number of cores for parallel build
-if command -v nproc &> /dev/null; then
-    NCORES=$(nproc)
-elif command -v sysctl &> /dev/null; then
-    NCORES=$(sysctl -n hw.ncpu)
-else
-    NCORES=4
-fi
-
-echo "Building casacore with $NCORES parallel jobs..."
-
 # Build
-cmake --build . --parallel $NCORES
+echo "Building casacore in parallel..."
+cmake --build . --parallel
 
 # Install
 echo "Installing casacore..."
