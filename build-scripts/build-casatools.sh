@@ -69,32 +69,8 @@ echo "  CXXFLAGS=$CXXFLAGS"
 echo "  CPPFLAGS=$CPPFLAGS"
 echo "  LDFLAGS=$LDFLAGS"
 
-# Try building with explicit build directory creation
-echo "Building casatools with setuptools..."
-
-# First, try the standard build process
-python setup.py build_ext --inplace || {
-    echo "Standard build failed, trying alternative approach..."
-    
-    # Create the expected build directory structure manually
-    echo "Creating build directory structure manually..."
-    mkdir -p build/lib.*/casatools
-    
-    # Try building again
-    python setup.py build_ext --inplace || {
-        echo "Build still failing, trying with different Python build approach..."
-        
-        # Try using pip build instead
-        pip install -e . --no-deps || {
-            echo "All build approaches failed. Manual intervention may be required."
-            echo "Check the casatools setup.py configuration and build requirements."
-            exit 1
-        }
-    }
-}
-
-# If we get here, one of the build approaches worked
-echo "Building wheel..."
+# Build casatools wheel
+echo "Building casatools wheel..."
 python setup.py bdist_wheel
 
 # Install the wheel
