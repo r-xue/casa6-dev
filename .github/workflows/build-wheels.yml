@@ -37,25 +37,25 @@ jobs:
           # macOS Apple Silicon (ARM64)
           - name: macOS ARM64 (Python 3.12)
             os: macos-14
-            environment: arm-mac
+            environment: build-arm
             arch: osx-arm64
 
           # macOS Intel (x86_64) - commented out due to small user base
           # - name: macOS Intel (Python 3.11)
           #   os: macos-15-intel
-          #   environment: intel-mac
+          #   environment: build-intel
           #   arch: osx-64
 
           # Linux x86_64
           - name: Linux x86_64 (Python 3.12)
             os: ubuntu-24.04
-            environment: linux-dev
+            environment: build-linux
             arch: linux-64
 
           # Linux ARM64
           - name: Linux ARM64 (Python 3.12)
             os: ubuntu-24.04-arm
-            environment: linux-dev
+            environment: build-linux
             arch: linux-aarch64
 
     steps:
