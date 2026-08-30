@@ -76,6 +76,7 @@ pytest = "*"
 casaconfig = "*"  # Pure Python package that casatools depends on
 pyerfa = "*"
 scipy = "*"
+matplotlib = "*"
 
 # Additional tools
 git = "*"
@@ -169,7 +170,6 @@ numpy = ">=2.0"
 [feature.dev.dependencies]
 ipython = "*"
 jupyter = "*"
-matplotlib = "*"
 
 # ============================================================
 # GPU Support (Optional)
