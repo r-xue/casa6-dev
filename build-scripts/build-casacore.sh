@@ -53,6 +53,8 @@ fi
 export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
 export CCACHE_MAXSIZE="15G"
 export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."

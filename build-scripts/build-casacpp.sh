@@ -53,11 +53,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"
     export CFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CFLAGS:-}"
     
-    # ccache configuration
-    export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-    export CCACHE_MAXSIZE="15G"
-    export CCACHE_COMPRESS=1
-    
     # CMake flags - let CMake use environment variables for compilers
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=gfortran -DOpenMP_ROOT=$CONDA_PREFIX"
     
@@ -95,11 +90,6 @@ else
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     
-    # ccache configuration
-    export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-    export CCACHE_MAXSIZE="15G"
-    export CCACHE_COMPRESS=1
-    
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=$FC -DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch"
 
     # RPATH handling (Linux / ELF).
@@ -111,6 +101,13 @@ else
     CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_INSTALL_RPATH=\$ORIGIN/../lib:$CONDA_PREFIX/lib"
     CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON"
 fi
+
+# ccache configuration
+export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
+export CCACHE_MAXSIZE="15G"
+export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."

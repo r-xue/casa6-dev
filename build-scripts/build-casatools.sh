@@ -32,6 +32,8 @@ export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() 
 export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
 export CCACHE_MAXSIZE="15G"
 export CCACHE_COMPRESS=1
+export CCACHE_BASEDIR="$PROJECT_ROOT"
+export CCACHE_NOHASHDIR=1
 
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings
