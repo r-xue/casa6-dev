@@ -1,0 +1,61 @@
+diff --git a/casatools/src/code/synthesis/TransformMachines2/AWVisResamplerHPG.cc b/casatools/src/code/synthesis/TransformMachines2/AWVisResamplerHPG.cc
+index ca6219535..18a93b482 100644
+--- casatools/src/code/synthesis/TransformMachines2/AWVisResamplerHPG.cc
++++ casatools/src/code/synthesis/TransformMachines2/AWVisResamplerHPG.cc
+@@ -406,7 +406,9 @@ makeHPGVisBuffer2(casacore::Matrix<double>& sumwt,
+       cFunc.putStorage(cfuncPtr,  isCopy);
+       hpg::opt_t<hpg::Error> err;
+       if (send_to_device) {
+-        	err=hpgGridder_p->set_convolution_function(hpg::Device::OpenMP, std::move(cfArray));
++          hpg::Device hostDevice = hpg::Device::Serial;
++          if (hpg::devices().count(hpg::Device::OpenMP) > 0) hostDevice = hpg::Device::OpenMP;
++          err=hpgGridder_p->set_convolution_function(hostDevice, std::move(cfArray));
+       }
+       std::tuple<hpg::opt_t<hpg::Error>, hpg::CFSimpleIndexer> retval = std::make_tuple(err, cfsi);
+       return retval;
+@@ -489,6 +491,9 @@ makeHPGVisBuffer2(casacore::Matrix<double>& sumwt,
+ 				 conjugate_mueller_indexes);
+ 	  //hpgGridder_p = new hpg::Gridder(hpg::get_value(std::move(g)));
+ 
++	  if (hpg::is_error(g)) {
++	      throw casacore::AipsError("hpg::Gridder::create failed: " + hpg::get_error(g).message());
++	  }
+ 	  return new hpg::Gridder(hpg::get_value(std::move(g)));
+ 	}
+     };
+@@ -538,6 +543,9 @@ makeHPGVisBuffer2(casacore::Matrix<double>& sumwt,
+ 				 mueller_indexes);
+ 	  //hpgGridder_p = new hpg::Gridder(hpg::get_value(std::move(g)));
+ 
++	  if (hpg::is_error(g)) {
++	      throw casacore::AipsError("hpg::Gridder::create failed: " + hpg::get_error(g).message());
++	  }
+ 	  return new hpg::Gridder(hpg::get_value(std::move(g)));
+ 	}
+     };  
+@@ -573,10 +581,21 @@ makeHPGVisBuffer2(casacore::Matrix<double>& sumwt,
+ 
+   std::tuple<String, hpg::Device> AWVisResamplerHPG::getHPGDevice()
+   {
+-    String hpgDevice="cuda";
+-    hpg::Device Device=hpg::Device::Cuda;
+-    //hpgDevice=refim::SynthesisUtils::getenv("HPGDEVICE",hpgDevice);
+-    if (hpgDevice=="serial") Device=hpg::Device::Serial;
++    String hpgDevice="serial";
++    hpg::Device Device=hpg::Device::Serial;
++    
++    std::set<hpg::Device> supported_devices = hpg::devices();
++    if (supported_devices.count(hpg::Device::Cuda) > 0) {
++        hpgDevice = "cuda";
++        Device = hpg::Device::Cuda;
++    } else if (supported_devices.count(hpg::Device::OpenMP) > 0) {
++        hpgDevice = "omp";
++        Device = hpg::Device::OpenMP;
++    }
++
++    hpgDevice = refim::SynthesisUtils::getenv("HPGDEVICE", hpgDevice);
++    if (hpgDevice == "serial" && supported_devices.count(hpg::Device::Serial) > 0) Device = hpg::Device::Serial;
++    else if (hpgDevice == "omp" && supported_devices.count(hpg::Device::OpenMP) > 0) Device = hpg::Device::OpenMP;
+ 
+     return std::make_tuple(hpgDevice,Device);
+   }

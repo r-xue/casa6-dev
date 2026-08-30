@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'fix/*'
+      - 'feat/*'
       - 'feature/*'
       - 'release/*'
       - 'ci/*'
@@ -14,6 +15,9 @@ on:
   pull_request:
     branches:
       - main
+      - 'ci/*'
+      - 'feat/*'
+      - 'feature/*'
   workflow_dispatch:
     inputs:
       casa_branch:
@@ -58,12 +62,21 @@ jobs:
             environment: build-linux
             arch: linux-aarch64
 
+          # Linux x86_64 with GPU (CUDA) support
+          - name: Linux x86_64 GPU (Python 3.12)
+            os: ubuntu-24.04
+            environment: build-linux-gpu
+            arch: linux-64-cuda
+            pixi_flags: "--platform linux-64-cuda"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Pixi
         uses: prefix-dev/setup-pixi@v0.8.1
+        env:
+          CONDA_OVERRIDE_CUDA: "12"
         with:
           pixi-version: latest
           environments: ${{ matrix.environment }}
@@ -81,17 +94,17 @@ jobs:
         env:
           CASA_BRANCH: ${{ inputs.casa_branch }}
         run: |
-          pixi run -e ${{ matrix.environment }} clone-repo
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} clone-repo
 
       - name: Build all components (casacore, casacpp, casatools, casatasks)
         run: |
-          pixi run -e ${{ matrix.environment }} build-all
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} build-all
 
       - name: Verify installation and Python bindings
         run: |
-          pixi run -e ${{ matrix.environment }} python -c "import casatools; print('✓ casatools version:', casatools.version())"
-          pixi run -e ${{ matrix.environment }} python -c "from casatools import sakura; s = sakura(); print('✓ sakura module:', s)"
-          pixi run -e ${{ matrix.environment }} python -c "import casatasks; print('✓ casatasks imported successfully')"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatools; print('✓ casatools version:', casatools.version())"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "from casatools import sakura; s = sakura(); print('✓ sakura module:', s)"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatasks; print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4

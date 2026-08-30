@@ -11,7 +11,7 @@ if [[ -z "${CONDA_PREFIX:-}" ]]; then
 fi
 
 # Set project root directory
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 echo "Project root: $PROJECT_ROOT"
 echo "Using conda environment: $CONDA_PREFIX"
 

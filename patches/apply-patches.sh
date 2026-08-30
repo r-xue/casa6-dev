@@ -46,4 +46,9 @@ apply_patch_simple "casacpp-remove-pipe.patch" "remove casacpp -pipe flag which 
 apply_patch_simple "casatools-py312-swig-typemaps.patch" "casatools Python 3.12 SWIG typemaps compatibility"
 apply_patch_simple "casatools-msmetadata-counting-iterator.patch" "casatools msmetadata counting_iterator operator== for C++17/libc++"
 
+apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix HPG silent gridder failure and dynamic device fallback"
+apply_patch_simple "casatools-cuda-stub-fallback.patch" "casatools CUDA driver stub bundling and runtime CPU fallback"
+apply_patch_simple "casatools-hpg-clean-shutdown.patch" "Fix HPG/Kokkos CUDA shutdown crash on exit"
+
 echo "All patch operations completed"
+

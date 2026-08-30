@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 
 # Find or download the extracted libsakura directory
 LIBSAKURA_DIR=$(find src -maxdepth 1 -name "sakura-*" -type d 2>/dev/null | head -1)
