@@ -270,10 +270,10 @@ linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
 linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
 linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
 linux-314   = {features = ["linux", "py314", "dev"], solve-group = "linux-314"}
-linux-gpu     = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"]}  # default
-linux-gpu-312 = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"]}
-linux-gpu-313 = {features = ["linux", "py313", "dev", "gpu"], platforms = ["linux-64-cuda"]}
-linux-gpu-314 = {features = ["linux", "py314", "dev", "gpu"], platforms = ["linux-64-cuda"]}
+linux-gpu     = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}  # default
+linux-gpu-312 = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+linux-gpu-313 = {features = ["linux", "py313", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
+linux-gpu-314 = {features = ["linux", "py314", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
 
 # ---- ARM Mac environments (default: py312) ----
 arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}  # default
@@ -289,35 +289,35 @@ intel-312   = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-31
 intel-313   = {features = ["intel-mac", "py313", "dev"], solve-group = "intel-313"}
 
 # ---- Build-only environments (no dev tools) ----
-build-linux          = {features = ["linux",     "py312"], solve-group = "build-linux-312"}  # default
-build-linux-311      = {features = ["linux",     "py311"], solve-group = "build-linux-311"}
-build-linux-312      = {features = ["linux",     "py312"], solve-group = "build-linux-312"}
-build-linux-313      = {features = ["linux",     "py313"], solve-group = "build-linux-313"}
-build-linux-314      = {features = ["linux",     "py314"], solve-group = "build-linux-314"}
-build-linux-gpu      = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"]}  # default
-build-linux-gpu-312  = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"]}
-build-linux-gpu-313  = {features = ["linux",     "py313", "gpu"], platforms = ["linux-64-cuda"]}
-build-linux-gpu-314  = {features = ["linux",     "py314", "gpu"], platforms = ["linux-64-cuda"]}
-build-arm        = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}   # default
-build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "build-arm-311"}
-build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}
-build-arm-313    = {features = ["arm-mac",   "py313"], solve-group = "build-arm-313"}
-build-arm-314    = {features = ["arm-mac",   "py314"], solve-group = "build-arm-314"}
-build-intel      = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"} # default
-build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "build-intel-311"}
-build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"}
-build-intel-313  = {features = ["intel-mac", "py313"], solve-group = "build-intel-313"}
+build-linux          = {features = ["linux",     "py312"], solve-group = "linux-312"}  # default
+build-linux-311      = {features = ["linux",     "py311"], solve-group = "linux-311"}
+build-linux-312      = {features = ["linux",     "py312"], solve-group = "linux-312"}
+build-linux-313      = {features = ["linux",     "py313"], solve-group = "linux-313"}
+build-linux-314      = {features = ["linux",     "py314"], solve-group = "linux-314"}
+build-linux-gpu      = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}  # default
+build-linux-gpu-312  = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+build-linux-gpu-313  = {features = ["linux",     "py313", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
+build-linux-gpu-314  = {features = ["linux",     "py314", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
+build-arm        = {features = ["arm-mac",   "py312"], solve-group = "arm-312"}   # default
+build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "arm-311"}
+build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "arm-312"}
+build-arm-313    = {features = ["arm-mac",   "py313"], solve-group = "arm-313"}
+build-arm-314    = {features = ["arm-mac",   "py314"], solve-group = "arm-314"}
+build-intel      = {features = ["intel-mac", "py312"], solve-group = "intel-312"} # default
+build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "intel-311"}
+build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "intel-312"}
+build-intel-313  = {features = ["intel-mac", "py313"], solve-group = "intel-313"}
 
 # ---- MPI-enabled environments (default Python 3.12) ----
 default-mpi         = {features = ["py312", "dev", "mpi"], solve-group = "default-mpi-312"}
 linux-mpi           = {features = ["linux", "py312", "dev", "mpi"], solve-group = "linux-mpi-312"}
 arm-mpi             = {features = ["arm-mac", "py312", "dev", "mpi"], solve-group = "arm-mpi-312"}
 intel-mpi           = {features = ["intel-mac", "py312", "dev", "mpi"], solve-group = "intel-mpi-312"}
-build-linux-mpi     = {features = ["linux", "py312", "mpi"], solve-group = "build-linux-mpi-312"}
-build-arm-mpi       = {features = ["arm-mac", "py312", "mpi"], solve-group = "build-arm-mpi-312"}
-build-intel-mpi     = {features = ["intel-mac", "py312", "mpi"], solve-group = "build-intel-mpi-312"}
-linux-gpu-mpi       = {features = ["linux", "py312", "dev", "gpu", "mpi"], platforms = ["linux-64-cuda"]}
-build-linux-gpu-mpi = {features = ["linux", "py312", "gpu", "mpi"], platforms = ["linux-64-cuda"]}
+build-linux-mpi     = {features = ["linux", "py312", "mpi"], solve-group = "linux-mpi-312"}
+build-arm-mpi       = {features = ["arm-mac", "py312", "mpi"], solve-group = "arm-mpi-312"}
+build-intel-mpi     = {features = ["intel-mac", "py312", "mpi"], solve-group = "intel-mpi-312"}
+linux-gpu-mpi       = {features = ["linux", "py312", "dev", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-312"}
+build-linux-gpu-mpi = {features = ["linux", "py312", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-312"}
 
 # ============================================================
 # Tasks
