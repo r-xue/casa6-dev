@@ -191,8 +191,11 @@ jobs:
             echo "Could not resolve remote SHA; using fallback."
             SHA="${{ github.sha }}"
           fi
-          echo "Resolved upstream CASA6 SHA: $SHA"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          SHORT_CASA="${SHA:0:8}"
+          PATCH_HASH=$(sha256sum patches/* 2>/dev/null | sha256sum | cut -c1-8)
+          echo "Resolved CASA6: $SHORT_CASA, Patches: $PATCH_HASH"
+          echo "casa_sha=$SHORT_CASA" >> "$GITHUB_OUTPUT"
+          echo "patch_hash=$PATCH_HASH" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached CASA6 source
         id: source-cache
@@ -200,10 +203,10 @@ jobs:
         with:
           path: src/casa6
           key: >-
-            casa6-source-${{ steps.casa-sha.outputs.sha }}-${{
-              hashFiles('patches/**') }}
+            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{
+              steps.casa-sha.outputs.patch_hash }}
           restore-keys: |
-            casa6-source-${{ steps.casa-sha.outputs.sha }}-
+            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-
             casa6-source-
 
       - name: Clone or update CASA6 source and submodules
@@ -258,7 +261,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/ccache
-          key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.sha }}
+          key: >-
+            ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{
+              github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 

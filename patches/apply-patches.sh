@@ -14,22 +14,27 @@ apply_patch_simple() {
     fi
     
     echo "Applying $description..."
+    local status=0
     
     # Try to apply the patch, capture both stdout and stderr
-    if patch -p0 -N < "../../patches/$patch_file" 2>&1 | tee /tmp/patch_output.log; then
+    if patch -p0 -N < "../../patches/$patch_file" 2>&1 \
+       | tee /tmp/patch_output.log; then
         echo "✓ $description applied successfully"
     else
         # Check if it failed because already applied
         if grep -q "Reversed.*applied\|already applied" /tmp/patch_output.log; then
             echo "✓ $description already applied (skipping)"
         elif grep -q "FAILED\|reject" /tmp/patch_output.log; then
-            echo "✗ $description failed to apply - conflicts detected"
-            echo "Check the .rej files for details"
+            echo "✗ $description failed to apply - conflicts detected" >&2
+            echo "Check the .rej files for details" >&2
+            status=1
         else
-            echo "? $description - unclear result, check manually"
+            echo "? $description - unclear result, check manually" >&2
+            status=1
         fi
     fi
     rm -f /tmp/patch_output.log
+    return "$status"
 }
 
 # Apply patches in order
