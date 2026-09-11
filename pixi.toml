@@ -264,6 +264,7 @@ arm-314     = {features = ["arm-mac", "py314", "dev"], solve-group = "arm-314"}
 intel-mac   = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}  # default
 intel-311   = {features = ["intel-mac", "py311", "dev"], solve-group = "intel-311"}  # py311 no longer supported by CASA 6.7.7+
 intel-312   = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}
+intel-313   = {features = ["intel-mac", "py313", "dev"], solve-group = "intel-313"}
 
 # ---- Build-only environments (no dev tools) ----
 build-linux      = {features = ["linux",     "py312"], solve-group = "build-linux-312"}  # default
@@ -280,6 +281,7 @@ build-arm-314    = {features = ["arm-mac",   "py314"], solve-group = "build-arm-
 build-intel      = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"} # default
 build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "build-intel-311"}
 build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"}
+build-intel-313  = {features = ["intel-mac", "py313"], solve-group = "build-intel-313"}
 
 
 # ============================================================
@@ -358,3 +360,7 @@ description = "Build for Intel Mac with Python 3.11"
 [tasks.build-intel-312]
 cmd = "pixi run -e intel-312 build-all"
 description = "Build for Intel Mac with Python 3.12"
+
+[tasks.build-intel-313]
+cmd = "pixi run -e intel-313 build-all"
+description = "Build for Intel Mac with Python 3.13"
