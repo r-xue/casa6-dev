@@ -195,6 +195,7 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached CASA6 source
+        id: source-cache
         uses: actions/cache@v4
         with:
           path: src/casa6
@@ -208,6 +209,8 @@ jobs:
       - name: Clone or update CASA6 source and submodules
         env:
           CASA_BRANCH: ${{ inputs.casa_branch || 'master' }}
+          CASA_SKIP_REMOTE_UPDATE: ${{
+            steps.source-cache.outputs.cache-hit || 'false' }}
         run: |
           bash build-scripts/clone-repo.sh
 
@@ -231,6 +234,8 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental || false }}
+    env:
+      CASA_SKIP_REMOTE_UPDATE: "true"
     strategy:
       fail-fast: false
       matrix:
@@ -283,11 +288,14 @@ jobs:
       - name: Verify installation and Python bindings
         run: |
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
-            python -c "import casatools; print('✓ casatools:', casatools.version())"
+            python -c "import casatools; print('✓ casatools version:', \
+            casatools.version())"
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
-            python -c "from casatools import sakura; print('✓ sakura:', sakura())"
+            python -c "from casatools import sakura; print('✓ sakura:', \
+            sakura())"
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
-            python -c "import casatasks; print('✓ casatasks imported successfully')"
+            python -c "import casatasks; \
+            print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
