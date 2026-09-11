@@ -164,6 +164,11 @@ python = "3.13.*"
 cython = ">=3.0"
 numpy = ">=2.0"
 
+[feature.py314.dependencies]
+python = "3.14.*"
+cython = ">=3.0"
+numpy = ">=2.0"
+
 # ============================================================
 # Dev tools feature
 # ============================================================
@@ -215,6 +220,7 @@ linux-dev   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"} 
 linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
 linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
 linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
+linux-314   = {features = ["linux", "py314", "dev"], solve-group = "linux-314"}
 linux-gpu   = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"]}
 
 # ---- ARM Mac environments (default: py312) ----
@@ -222,6 +228,7 @@ arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"} 
 arm-311     = {features = ["arm-mac", "py311", "dev"], solve-group = "arm-311"}
 arm-312     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}
 arm-313     = {features = ["arm-mac", "py313", "dev"], solve-group = "arm-313"}
+arm-314     = {features = ["arm-mac", "py314", "dev"], solve-group = "arm-314"}
 
 # ---- Intel Mac environments (default: py311) ----
 intel-mac   = {features = ["intel-mac", "py311", "dev"], solve-group = "intel-311"}  # default (py311 until tested)
@@ -233,11 +240,13 @@ build-linux      = {features = ["linux",     "py312"], solve-group = "build-linu
 build-linux-311  = {features = ["linux",     "py311"], solve-group = "build-linux-311"}
 build-linux-312  = {features = ["linux",     "py312"], solve-group = "build-linux-312"}
 build-linux-313  = {features = ["linux",     "py313"], solve-group = "build-linux-313"}
+build-linux-314  = {features = ["linux",     "py314"], solve-group = "build-linux-314"}
 build-linux-gpu  = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"]}
 build-arm        = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}   # default
 build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "build-arm-311"}
 build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "build-arm-312"}
 build-arm-313    = {features = ["arm-mac",   "py313"], solve-group = "build-arm-313"}
+build-arm-314    = {features = ["arm-mac",   "py314"], solve-group = "build-arm-314"}
 build-intel      = {features = ["intel-mac", "py311"], solve-group = "build-intel-311"} # default
 build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "build-intel-311"}
 build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"}

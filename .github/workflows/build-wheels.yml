@@ -25,6 +25,16 @@ on:
         required: false
         default: ''
         type: string
+      python_version:
+        description: 'Python version to build (all, 3.12, 3.13, 3.14)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - '3.12'
+          - '3.13'
+          - '3.14'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,40 +44,104 @@ jobs:
   build-wheels:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental || false }}
+    if: >-
+      (github.event_name != 'pull_request' || matrix.pr_enabled == true) &&
+      (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.python_version == '' ||
+        inputs.python_version == 'all' ||
+        inputs.python_version == matrix.pyver
+      )
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon (ARM64)
-          - name: macOS ARM64 (Python 3.12)
-            os: macos-14
-            environment: build-arm
-            arch: osx-arm64
-
-          # macOS Intel (x86_64) - commented out due to small user base
-          # - name: macOS Intel (Python 3.11)
-          #   os: macos-15-intel
-          #   environment: build-intel
-          #   arch: osx-64
-
+          # ============================================================
           # Linux x86_64
+          # ============================================================
           - name: Linux x86_64 (Python 3.12)
             os: ubuntu-24.04
-            environment: build-linux
-            arch: linux-64
+            environment: build-linux-312
+            arch: linux-64-cp312
+            pyver: '3.12'
+            pr_enabled: true
 
-          # Linux ARM64
-          - name: Linux ARM64 (Python 3.12)
-            os: ubuntu-24.04-arm
-            environment: build-linux
-            arch: linux-aarch64
+          - name: Linux x86_64 (Python 3.13)
+            os: ubuntu-24.04
+            environment: build-linux-313
+            arch: linux-64-cp313
+            pyver: '3.13'
+            pr_enabled: false
 
+          - name: Linux x86_64 (Python 3.14)
+            os: ubuntu-24.04
+            environment: build-linux-314
+            arch: linux-64-cp314
+            pyver: '3.14'
+            pr_enabled: false
+            experimental: true
+
+          # ============================================================
           # Linux x86_64 with GPU (CUDA) support
+          # ============================================================
           - name: Linux x86_64 GPU (Python 3.12)
             os: ubuntu-24.04
             environment: build-linux-gpu
-            arch: linux-64-cuda
+            arch: linux-64-cuda-cp312
+            pyver: '3.12'
             pixi_flags: "--platform linux-64-cuda"
+            pr_enabled: true
+
+          # ============================================================
+          # macOS Apple Silicon (ARM64)
+          # ============================================================
+          - name: macOS ARM64 (Python 3.12)
+            os: macos-14
+            environment: build-arm-312
+            arch: osx-arm64-cp312
+            pyver: '3.12'
+            pr_enabled: true
+
+          - name: macOS ARM64 (Python 3.13)
+            os: macos-14
+            environment: build-arm-313
+            arch: osx-arm64-cp313
+            pyver: '3.13'
+            pr_enabled: false
+
+          - name: macOS ARM64 (Python 3.14)
+            os: macos-14
+            environment: build-arm-314
+            arch: osx-arm64-cp314
+            pyver: '3.14'
+            pr_enabled: false
+            experimental: true
+
+          # ============================================================
+          # Linux ARM64
+          # ============================================================
+          - name: Linux ARM64 (Python 3.12)
+            os: ubuntu-24.04-arm
+            environment: build-linux-312
+            arch: linux-aarch64-cp312
+            pyver: '3.12'
+            pr_enabled: false
+
+          - name: Linux ARM64 (Python 3.13)
+            os: ubuntu-24.04-arm
+            environment: build-linux-313
+            arch: linux-aarch64-cp313
+            pyver: '3.13'
+            pr_enabled: false
+
+          - name: Linux ARM64 (Python 3.14)
+            os: ubuntu-24.04-arm
+            environment: build-linux-314
+            arch: linux-aarch64-cp314
+            pyver: '3.14'
+            pr_enabled: false
+            experimental: true
 
     steps:
       - name: Checkout repository
