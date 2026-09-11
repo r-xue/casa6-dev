@@ -108,10 +108,27 @@ jobs:
               target(
                   name="Linux x86_64 GPU (Python 3.12)",
                   os="ubuntu-24.04",
-                  env="build-linux-gpu",
+                  env="build-linux-gpu-312",
                   arch="linux-64-cuda-cp312",
                   pyver="3.12",
                   pr=True,
+                  flags="--platform linux-64-cuda",
+              ),
+              target(
+                  name="Linux x86_64 GPU (Python 3.13)",
+                  os="ubuntu-24.04",
+                  env="build-linux-gpu-313",
+                  arch="linux-64-cuda-cp313",
+                  pyver="3.13",
+                  flags="--platform linux-64-cuda",
+              ),
+              target(
+                  name="Linux x86_64 GPU (Python 3.14)",
+                  os="ubuntu-24.04",
+                  env="build-linux-gpu-314",
+                  arch="linux-64-cuda-cp314",
+                  pyver="3.14",
+                  exp=True,
                   flags="--platform linux-64-cuda",
               ),
 
