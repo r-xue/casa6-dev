@@ -104,6 +104,16 @@ jobs:
                   exp=True,
               ),
 
+              # Linux x86_64 with OpenMPI support
+              target(
+                  name="Linux x86_64 MPI (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-mpi",
+                  arch="linux-64-mpi-cp312",
+                  pyver="3.12",
+                  pr=True,
+              ),
+
               # Linux x86_64 with GPU (CUDA) support
               target(
                   name="Linux x86_64 GPU (Python 3.12)",
@@ -132,6 +142,16 @@ jobs:
                   flags="--platform linux-64-cuda",
               ),
 
+              # Linux x86_64 GPU with OpenMPI support
+              target(
+                  name="Linux x86_64 GPU+MPI (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-gpu-mpi",
+                  arch="linux-64-cuda-mpi-cp312",
+                  pyver="3.12",
+                  flags="--platform linux-64-cuda",
+              ),
+
               # macOS Apple Silicon (ARM64)
               target(
                   name="macOS ARM64 (Python 3.12)",
@@ -157,6 +177,15 @@ jobs:
                   exp=True,
               ),
 
+              # macOS Apple Silicon (ARM64) with OpenMPI support
+              target(
+                  name="macOS ARM64 MPI (Python 3.12)",
+                  os="macos-14",
+                  env="build-arm-mpi",
+                  arch="osx-arm64-mpi-cp312",
+                  pyver="3.12",
+              ),
+
               # macOS Intel (x86_64)
               target(
                   name="macOS Intel (Python 3.12)",
@@ -172,6 +201,16 @@ jobs:
                   env="build-intel-313",
                   arch="osx-64-cp313",
                   pyver="3.13",
+                  exp=True,
+              ),
+
+              # macOS Intel (x86_64) with OpenMPI support
+              target(
+                  name="macOS Intel MPI (Python 3.12)",
+                  os="macos-15-intel",
+                  env="build-intel-mpi",
+                  arch="osx-64-mpi-cp312",
+                  pyver="3.12",
                   exp=True,
               ),
 
@@ -197,6 +236,15 @@ jobs:
                   arch="linux-aarch64-cp314",
                   pyver="3.14",
                   exp=True,
+              ),
+
+              # Linux ARM64 with OpenMPI support
+              target(
+                  name="Linux ARM64 MPI (Python 3.12)",
+                  os="ubuntu-24.04-arm",
+                  env="build-linux-mpi",
+                  arch="linux-aarch64-mpi-cp312",
+                  pyver="3.12",
               ),
           ]
 

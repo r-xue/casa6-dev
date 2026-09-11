@@ -233,6 +233,16 @@ CASA_ENABLE_GPU = "1"
 CASA_GPU_ARCH = "sm_80"
 
 # ============================================================
+# OpenMPI Support (Optional)
+# ============================================================
+[feature.mpi.dependencies]
+openmpi = "*"
+mpi4py = "*"
+
+[feature.mpi.activation.env]
+MPI_ROOT = "$CONDA_PREFIX"
+
+# ============================================================
 # Environments
 #
 # Naming convention:
@@ -298,6 +308,16 @@ build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "build-inte
 build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "build-intel-312"}
 build-intel-313  = {features = ["intel-mac", "py313"], solve-group = "build-intel-313"}
 
+# ---- MPI-enabled environments (default Python 3.12) ----
+default-mpi         = {features = ["py312", "dev", "mpi"], solve-group = "default-mpi-312"}
+linux-mpi           = {features = ["linux", "py312", "dev", "mpi"], solve-group = "linux-mpi-312"}
+arm-mpi             = {features = ["arm-mac", "py312", "dev", "mpi"], solve-group = "arm-mpi-312"}
+intel-mpi           = {features = ["intel-mac", "py312", "dev", "mpi"], solve-group = "intel-mpi-312"}
+build-linux-mpi     = {features = ["linux", "py312", "mpi"], solve-group = "build-linux-mpi-312"}
+build-arm-mpi       = {features = ["arm-mac", "py312", "mpi"], solve-group = "build-arm-mpi-312"}
+build-intel-mpi     = {features = ["intel-mac", "py312", "mpi"], solve-group = "build-intel-mpi-312"}
+linux-gpu-mpi       = {features = ["linux", "py312", "dev", "gpu", "mpi"], platforms = ["linux-64-cuda"]}
+build-linux-gpu-mpi = {features = ["linux", "py312", "gpu", "mpi"], platforms = ["linux-64-cuda"]}
 
 # ============================================================
 # Tasks
@@ -346,6 +366,14 @@ description = "Build for Linux with GPU support (Python 3.13)"
 [tasks.build-gpu-314]
 cmd = "pixi run --platform linux-64-cuda -e linux-gpu-314 build-all"
 description = "Build for Linux with GPU support (Python 3.14)"
+
+[tasks.build-mpi]
+cmd = "pixi run -e linux-mpi build-all"
+description = "Build for Linux with OpenMPI support (default Python 3.12)"
+
+[tasks.build-gpu-mpi]
+cmd = "pixi run --platform linux-64-cuda -e linux-gpu-mpi build-all"
+description = "Build for Linux with GPU and OpenMPI (default Python 3.12)"
 
 [tasks.build-arm]
 cmd = "pixi run -e arm-mac build-all"
