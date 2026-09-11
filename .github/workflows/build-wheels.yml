@@ -27,12 +27,12 @@ on:
   workflow_dispatch:
     inputs:
       casa_branch:
-        description: 'CASA6 branch/tag to build (empty for default)'
+        description: 'CASA6 branch or tag'
         required: false
         default: ''
         type: string
       preset:
-        description: 'Target preset to build'
+        description: 'Target preset'
         required: false
         default: 'all'
         type: choice
@@ -55,7 +55,7 @@ on:
           - 'macos-arm64'
           - 'macos-intel'
       python_version:
-        description: 'Python version to build (all, 3.12, 3.13, 3.14)'
+        description: 'Python version'
         required: false
         default: 'all'
         type: choice
