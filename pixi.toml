@@ -259,54 +259,48 @@ MPI_ROOT = "$CONDA_PREFIX"
 #                        if a grpc-cpp/libprotobuf ABI conflict resurfaces)
 # ============================================================
 [environments]
-# ---- Default environment ----
-# py312 is the default Python version. Change this and the solve-group
-# to switch the default (e.g. "py313" + solve-group = "default-313").
-default = {features = ["py312", "dev"], solve-group = "default-312"}
+# ---- Platform Default Convenience Aliases (Python 3.12) ----
+default             = {features = ["py312", "dev"], solve-group = "default-312"}
+linux-dev           = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
+linux-gpu           = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+arm-mac             = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}
+intel-mac           = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}
+build-linux         = {features = ["linux", "py312"], solve-group = "linux-312"}
+build-linux-gpu     = {features = ["linux", "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+build-arm           = {features = ["arm-mac", "py312"], solve-group = "arm-312"}
+build-intel         = {features = ["intel-mac", "py312"], solve-group = "intel-312"}
 
-# ---- Linux environments (default: py312) ----
-linux-dev   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}  # default
-linux-311   = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
-linux-312   = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
-linux-313   = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
-linux-314   = {features = ["linux", "py314", "dev"], solve-group = "linux-314"}
-linux-gpu     = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}  # default
-linux-gpu-312 = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
-linux-gpu-313 = {features = ["linux", "py313", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
-linux-gpu-314 = {features = ["linux", "py314", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
+# ---- Explicit Version Matrix: Interactive Dev (with dev tools) ----
+linux-311           = {features = ["linux", "py311", "dev"], solve-group = "linux-311"}
+linux-312           = {features = ["linux", "py312", "dev"], solve-group = "linux-312"}
+linux-313           = {features = ["linux", "py313", "dev"], solve-group = "linux-313"}
+linux-314           = {features = ["linux", "py314", "dev"], solve-group = "linux-314"}
+linux-gpu-312       = {features = ["linux", "py312", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+linux-gpu-313       = {features = ["linux", "py313", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
+linux-gpu-314       = {features = ["linux", "py314", "dev", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
+arm-311             = {features = ["arm-mac", "py311", "dev"], solve-group = "arm-311"}
+arm-312             = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}
+arm-313             = {features = ["arm-mac", "py313", "dev"], solve-group = "arm-313"}
+arm-314             = {features = ["arm-mac", "py314", "dev"], solve-group = "arm-314"}
+intel-311           = {features = ["intel-mac", "py311", "dev"], solve-group = "intel-311"}
+intel-312           = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}
+intel-313           = {features = ["intel-mac", "py313", "dev"], solve-group = "intel-313"}
 
-# ---- ARM Mac environments (default: py312) ----
-arm-mac     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}  # default
-arm-311     = {features = ["arm-mac", "py311", "dev"], solve-group = "arm-311"}
-arm-312     = {features = ["arm-mac", "py312", "dev"], solve-group = "arm-312"}
-arm-313     = {features = ["arm-mac", "py313", "dev"], solve-group = "arm-313"}
-arm-314     = {features = ["arm-mac", "py314", "dev"], solve-group = "arm-314"}
-
-# ---- Intel Mac environments (default: py312) ----
-intel-mac   = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}  # default
-intel-311   = {features = ["intel-mac", "py311", "dev"], solve-group = "intel-311"}  # py311 no longer supported by CASA 6.7.7+
-intel-312   = {features = ["intel-mac", "py312", "dev"], solve-group = "intel-312"}
-intel-313   = {features = ["intel-mac", "py313", "dev"], solve-group = "intel-313"}
-
-# ---- Build-only environments (no dev tools) ----
-build-linux          = {features = ["linux",     "py312"], solve-group = "linux-312"}  # default
-build-linux-311      = {features = ["linux",     "py311"], solve-group = "linux-311"}
-build-linux-312      = {features = ["linux",     "py312"], solve-group = "linux-312"}
-build-linux-313      = {features = ["linux",     "py313"], solve-group = "linux-313"}
-build-linux-314      = {features = ["linux",     "py314"], solve-group = "linux-314"}
-build-linux-gpu      = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}  # default
-build-linux-gpu-312  = {features = ["linux",     "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
-build-linux-gpu-313  = {features = ["linux",     "py313", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
-build-linux-gpu-314  = {features = ["linux",     "py314", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
-build-arm        = {features = ["arm-mac",   "py312"], solve-group = "arm-312"}   # default
-build-arm-311    = {features = ["arm-mac",   "py311"], solve-group = "arm-311"}
-build-arm-312    = {features = ["arm-mac",   "py312"], solve-group = "arm-312"}
-build-arm-313    = {features = ["arm-mac",   "py313"], solve-group = "arm-313"}
-build-arm-314    = {features = ["arm-mac",   "py314"], solve-group = "arm-314"}
-build-intel      = {features = ["intel-mac", "py312"], solve-group = "intel-312"} # default
-build-intel-311  = {features = ["intel-mac", "py311"], solve-group = "intel-311"}
-build-intel-312  = {features = ["intel-mac", "py312"], solve-group = "intel-312"}
-build-intel-313  = {features = ["intel-mac", "py313"], solve-group = "intel-313"}
+# ---- Explicit Version Matrix: Build-Only (no dev tools) ----
+build-linux-311     = {features = ["linux", "py311"], solve-group = "linux-311"}
+build-linux-312     = {features = ["linux", "py312"], solve-group = "linux-312"}
+build-linux-313     = {features = ["linux", "py313"], solve-group = "linux-313"}
+build-linux-314     = {features = ["linux", "py314"], solve-group = "linux-314"}
+build-linux-gpu-312 = {features = ["linux", "py312", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-312"}
+build-linux-gpu-313 = {features = ["linux", "py313", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-313"}
+build-linux-gpu-314 = {features = ["linux", "py314", "gpu"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-314"}
+build-arm-311       = {features = ["arm-mac", "py311"], solve-group = "arm-311"}
+build-arm-312       = {features = ["arm-mac", "py312"], solve-group = "arm-312"}
+build-arm-313       = {features = ["arm-mac", "py313"], solve-group = "arm-313"}
+build-arm-314       = {features = ["arm-mac", "py314"], solve-group = "arm-314"}
+build-intel-311     = {features = ["intel-mac", "py311"], solve-group = "intel-311"}
+build-intel-312     = {features = ["intel-mac", "py312"], solve-group = "intel-312"}
+build-intel-313     = {features = ["intel-mac", "py313"], solve-group = "intel-313"}
 
 # ---- MPI-enabled environments (default Python 3.12) ----
 default-mpi         = {features = ["py312", "dev", "mpi"], solve-group = "default-mpi-312"}
