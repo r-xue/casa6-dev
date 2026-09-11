@@ -42,14 +42,17 @@ concurrency:
 
 jobs:
   # ============================================================================
-  # Dynamically determine the build matrix based on the trigger event
+  # Dynamically determine matrix and prepare source code once (cached & shared)
   # ============================================================================
   prepare-matrix:
-    name: Configure Build Matrix
+    name: Configure Matrix and Prepare Source
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Generate matrix JSON
         id: set-matrix
         env:
@@ -176,6 +179,50 @@ jobs:
               f.write(f"matrix={json.dumps(filtered)}\n")
           PYEOF
 
+      - name: Resolve upstream CASA6 commit SHA
+        id: casa-sha
+        run: |
+          BRANCH="${{ inputs.casa_branch || 'master' }}"
+          REMOTE="https://open-bitbucket.nrao.edu/scm/casa/casa6.git"
+          # Query remote HEAD commit without downloading any repo data
+          SHA=$(git ls-remote --heads --tags "$REMOTE" "$BRANCH" \
+            | awk '{print $1}' | head -n 1) || SHA=""
+          if [[ -z "$SHA" ]]; then
+            echo "Could not resolve remote SHA; using fallback."
+            SHA="${{ github.sha }}"
+          fi
+          echo "Resolved upstream CASA6 SHA: $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached CASA6 source
+        uses: actions/cache@v4
+        with:
+          path: src/casa6
+          key: >-
+            casa6-source-${{ steps.casa-sha.outputs.sha }}-${{
+              hashFiles('patches/**') }}
+          restore-keys: |
+            casa6-source-${{ steps.casa-sha.outputs.sha }}-
+            casa6-source-
+
+      - name: Clone or update CASA6 source and submodules
+        env:
+          CASA_BRANCH: ${{ inputs.casa_branch || 'master' }}
+        run: |
+          bash build-scripts/clone-repo.sh
+
+      - name: Package CASA6 source archive
+        run: |
+          mkdir -p /tmp/casa6-artifacts
+          tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src casa6
+
+      - name: Upload CASA6 source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: casa6-source
+          path: /tmp/casa6-artifacts/casa6-source.tar
+          retention-days: 1
+
   # ============================================================================
   # Build wheels according to the dynamically resolved matrix
   # ============================================================================
@@ -210,9 +257,22 @@ jobs:
           restore-keys: |
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 
-      - name: Clone CASA6 source and submodules
+      - name: Download CASA6 source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: casa6-source
+          path: /tmp/casa6-artifacts
+
+      - name: Extract CASA6 source
+        run: |
+          mkdir -p src
+          tar -xf /tmp/casa6-artifacts/casa6-source.tar -C src
+          rm -f /tmp/casa6-artifacts/casa6-source.tar
+
+      - name: Verify and configure CASA6 source
         env:
           CASA_BRANCH: ${{ inputs.casa_branch }}
+          CASA_SKIP_REMOTE_UPDATE: "true"
         run: |
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} clone-repo
 
