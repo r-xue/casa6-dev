@@ -24,9 +24,9 @@ mkdir -p "$PROJECT_ROOT/src"
 cd "$PROJECT_ROOT/src"
 
 if [ ! -d "hpg/.git" ]; then
-    echo "Cloning HPG repository..."
-    rm -rf hpg
-    git clone https://gitlab.nrao.edu/mpokorny/hpg.git
+    bash "${PROJECT_ROOT}/build-scripts/clone-hpg.sh"
+else
+    echo "HPG source already present in src/hpg, skipping remote clone."
 fi
 
 cd hpg

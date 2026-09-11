@@ -235,10 +235,43 @@ jobs:
         run: |
           bash build-scripts/clone-repo.sh
 
-      - name: Package CASA6 source archive
+      - name: Resolve upstream HPG commit SHA
+        id: hpg-sha
+        run: |
+          HPG_REMOTE="https://gitlab.nrao.edu/mpokorny/hpg.git"
+          # Query remote HEAD commit with timeout to avoid hanging on slow GitLab
+          SHA=$(timeout 15s git ls-remote --heads "$HPG_REMOTE" main 2>/dev/null \
+            | awk '{print $1}' | head -n 1) || SHA=""
+          if [[ -z "$SHA" ]]; then
+            echo "Could not resolve HPG remote SHA; using fallback."
+            SHA="3276d778"
+          fi
+          SHORT_HPG="${SHA:0:8}"
+          echo "Resolved HPG: $SHORT_HPG"
+          echo "hpg_sha=$SHORT_HPG" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached HPG source
+        id: hpg-cache
+        uses: actions/cache@v4
+        with:
+          path: src/hpg
+          key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}
+
+      - name: Clone or update HPG source
+        env:
+          CASA_SKIP_REMOTE_UPDATE: ${{
+            steps.hpg-cache.outputs.cache-hit || 'false' }}
+        run: |
+          bash build-scripts/clone-hpg.sh
+
+      - name: Package source archive
         run: |
           mkdir -p /tmp/casa6-artifacts
-          tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src casa6
+          ITEMS=("casa6")
+          if [[ -d "src/hpg" ]]; then
+            ITEMS+=("hpg")
+          fi
+          tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src "${ITEMS[@]}"
 
       - name: Upload CASA6 source artifact
         uses: actions/upload-artifact@v4
