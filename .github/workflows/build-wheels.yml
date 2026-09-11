@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       casa_branch:
-        description: 'CASA6 branch or tag to build (leave empty for upstream default)'
+        description: 'CASA6 branch/tag to build (empty for default)'
         required: false
         default: ''
         type: string
@@ -41,107 +41,153 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ============================================================================
+  # Dynamically determine the build matrix based on the trigger event
+  # ============================================================================
+  prepare-matrix:
+    name: Configure Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate matrix JSON
+        id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PY_VERSION: ${{ inputs.python_version || 'all' }}
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          import os
+
+          def target(name, os, env, arch, pyver, pr=False, exp=False, flags=""):
+              item = {
+                  "name": name,
+                  "os": os,
+                  "environment": env,
+                  "arch": arch,
+                  "pyver": pyver,
+                  "pr_enabled": pr,
+              }
+              if exp:
+                  item["experimental"] = True
+              if flags:
+                  item["pixi_flags"] = flags
+              return item
+
+          targets = [
+              # Linux x86_64
+              target(
+                  name="Linux x86_64 (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-312",
+                  arch="linux-64-cp312",
+                  pyver="3.12",
+                  pr=True,
+              ),
+              target(
+                  name="Linux x86_64 (Python 3.13)",
+                  os="ubuntu-24.04",
+                  env="build-linux-313",
+                  arch="linux-64-cp313",
+                  pyver="3.13",
+              ),
+              target(
+                  name="Linux x86_64 (Python 3.14)",
+                  os="ubuntu-24.04",
+                  env="build-linux-314",
+                  arch="linux-64-cp314",
+                  pyver="3.14",
+                  exp=True,
+              ),
+
+              # Linux x86_64 with GPU (CUDA) support
+              target(
+                  name="Linux x86_64 GPU (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-gpu",
+                  arch="linux-64-cuda-cp312",
+                  pyver="3.12",
+                  pr=True,
+                  flags="--platform linux-64-cuda",
+              ),
+
+              # macOS Apple Silicon (ARM64)
+              target(
+                  name="macOS ARM64 (Python 3.12)",
+                  os="macos-14",
+                  env="build-arm-312",
+                  arch="osx-arm64-cp312",
+                  pyver="3.12",
+                  pr=True,
+              ),
+              target(
+                  name="macOS ARM64 (Python 3.13)",
+                  os="macos-14",
+                  env="build-arm-313",
+                  arch="osx-arm64-cp313",
+                  pyver="3.13",
+              ),
+              target(
+                  name="macOS ARM64 (Python 3.14)",
+                  os="macos-14",
+                  env="build-arm-314",
+                  arch="osx-arm64-cp314",
+                  pyver="3.14",
+                  exp=True,
+              ),
+
+              # Linux ARM64
+              target(
+                  name="Linux ARM64 (Python 3.12)",
+                  os="ubuntu-24.04-arm",
+                  env="build-linux-312",
+                  arch="linux-aarch64-cp312",
+                  pyver="3.12",
+              ),
+              target(
+                  name="Linux ARM64 (Python 3.13)",
+                  os="ubuntu-24.04-arm",
+                  env="build-linux-313",
+                  arch="linux-aarch64-cp313",
+                  pyver="3.13",
+              ),
+              target(
+                  name="Linux ARM64 (Python 3.14)",
+                  os="ubuntu-24.04-arm",
+                  env="build-linux-314",
+                  arch="linux-aarch64-cp314",
+                  pyver="3.14",
+                  exp=True,
+              ),
+          ]
+
+          event_name = os.environ.get("EVENT_NAME", "")
+          py_choice = os.environ.get("PY_VERSION", "all")
+
+          if event_name == "pull_request":
+              filtered = [t for t in targets if t.get("pr_enabled")]
+          elif py_choice != "all":
+              filtered = [t for t in targets if t.get("pyver") == py_choice]
+          else:
+              filtered = targets
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"matrix={json.dumps(filtered)}\n")
+          PYEOF
+
+  # ============================================================================
+  # Build wheels according to the dynamically resolved matrix
+  # ============================================================================
   build-wheels:
+    needs: prepare-matrix
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental || false }}
-    if: >-
-      (github.event_name != 'pull_request' || matrix.pr_enabled == true) &&
-      (
-        github.event_name != 'workflow_dispatch' ||
-        inputs.python_version == '' ||
-        inputs.python_version == 'all' ||
-        inputs.python_version == matrix.pyver
-      )
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # ============================================================
-          # Linux x86_64
-          # ============================================================
-          - name: Linux x86_64 (Python 3.12)
-            os: ubuntu-24.04
-            environment: build-linux-312
-            arch: linux-64-cp312
-            pyver: '3.12'
-            pr_enabled: true
-
-          - name: Linux x86_64 (Python 3.13)
-            os: ubuntu-24.04
-            environment: build-linux-313
-            arch: linux-64-cp313
-            pyver: '3.13'
-            pr_enabled: false
-
-          - name: Linux x86_64 (Python 3.14)
-            os: ubuntu-24.04
-            environment: build-linux-314
-            arch: linux-64-cp314
-            pyver: '3.14'
-            pr_enabled: false
-            experimental: true
-
-          # ============================================================
-          # Linux x86_64 with GPU (CUDA) support
-          # ============================================================
-          - name: Linux x86_64 GPU (Python 3.12)
-            os: ubuntu-24.04
-            environment: build-linux-gpu
-            arch: linux-64-cuda-cp312
-            pyver: '3.12'
-            pixi_flags: "--platform linux-64-cuda"
-            pr_enabled: true
-
-          # ============================================================
-          # macOS Apple Silicon (ARM64)
-          # ============================================================
-          - name: macOS ARM64 (Python 3.12)
-            os: macos-14
-            environment: build-arm-312
-            arch: osx-arm64-cp312
-            pyver: '3.12'
-            pr_enabled: true
-
-          - name: macOS ARM64 (Python 3.13)
-            os: macos-14
-            environment: build-arm-313
-            arch: osx-arm64-cp313
-            pyver: '3.13'
-            pr_enabled: false
-
-          - name: macOS ARM64 (Python 3.14)
-            os: macos-14
-            environment: build-arm-314
-            arch: osx-arm64-cp314
-            pyver: '3.14'
-            pr_enabled: false
-            experimental: true
-
-          # ============================================================
-          # Linux ARM64
-          # ============================================================
-          - name: Linux ARM64 (Python 3.12)
-            os: ubuntu-24.04-arm
-            environment: build-linux-312
-            arch: linux-aarch64-cp312
-            pyver: '3.12'
-            pr_enabled: false
-
-          - name: Linux ARM64 (Python 3.13)
-            os: ubuntu-24.04-arm
-            environment: build-linux-313
-            arch: linux-aarch64-cp313
-            pyver: '3.13'
-            pr_enabled: false
-
-          - name: Linux ARM64 (Python 3.14)
-            os: ubuntu-24.04-arm
-            environment: build-linux-314
-            arch: linux-aarch64-cp314
-            pyver: '3.14'
-            pr_enabled: false
-            experimental: true
+        include: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
@@ -176,9 +222,12 @@ jobs:
 
       - name: Verify installation and Python bindings
         run: |
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatools; print('✓ casatools version:', casatools.version())"
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "from casatools import sakura; s = sakura(); print('✓ sakura module:', s)"
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} python -c "import casatasks; print('✓ casatasks imported successfully')"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
+            python -c "import casatools; print('✓ casatools:', casatools.version())"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
+            python -c "from casatools import sakura; print('✓ sakura:', sakura())"
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} \
+            python -c "import casatasks; print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
@@ -188,4 +237,3 @@ jobs:
             src/casa6/casatools/dist/*.whl
             src/casa6/casatasks/dist/*.whl
           if-no-files-found: error
-
