@@ -43,7 +43,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
     export CC="clang"
     export CXX="clang++"
-    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
     export FC=gfortran  # Set Fortran compiler
     
     # Set OpenMP flags for macOS (handle unset variables properly)

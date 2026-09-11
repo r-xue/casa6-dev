@@ -25,7 +25,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
     export CC="clang"
     export CXX="clang++"
-    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
     export FC=gfortran
     
     # Set OpenMP flags for macOS

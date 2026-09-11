@@ -40,7 +40,6 @@ NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 if [[ "$OSTYPE" == "darwin"* ]]; then
     export CC="clang"
     export CXX="clang++"
-    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"

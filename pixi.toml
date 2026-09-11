@@ -139,6 +139,15 @@ pkg-config = "*"
 llvm-openmp = "*"  # OpenMP support for Intel Mac
 swig = "*"  # SWIG for Python bindings - CASA requires < 4
 
+# ---- Xcode 16 / conda clang LTO workaround ------------------------
+# Background: conda-forge clang 18 on osx-64 unconditionally passes
+#   -lto_library /path/to/libLTO.dylib
+# to the system ld via its linker driver. Xcode 16+ ld rejects this flag
+# unless the filename is literally 'libLTO.dylib' (not a full path).
+# The wrapper intercepts the ld call and strips the offending argument.
+[target.osx-64.activation.env]
+PATH = "$PIXI_PROJECT_ROOT/build-scripts/wrappers/osx-64:$PATH"
+
 [target.osx-arm64.dependencies]
 clang = "*"
 clangxx = "*"

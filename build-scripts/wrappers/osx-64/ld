@@ -1,0 +1,28 @@
+#!/bin/bash
+# ld — Wrapper that strips -lto_library from clang's linker invocations.
+#
+# Background: conda-forge clang 18 on osx-64 unconditionally passes
+#   -lto_library /path/to/libLTO.dylib
+# to the system ld via its linker driver. Xcode 16+ ld rejects this flag
+# unless the filename is literally 'libLTO.dylib' (not a full path).
+# The wrapper intercepts the ld call and strips the offending argument.
+#
+# Only active on osx-64 (Intel Mac) via pixi [target.osx-64.activation.env].
+# On ARM Mac and Linux this is a no-op (not added to PATH).
+
+# Strip -lto_library <arg> pairs before calling the real system ld.
+REAL_LD=$(xcrun -f ld 2>/dev/null || echo /usr/bin/ld)
+args=()
+skip_next=0
+for arg in "$@"; do
+    if [[ $skip_next -eq 1 ]]; then
+        skip_next=0
+        continue
+    fi
+    if [[ "$arg" == "-lto_library" ]]; then
+        skip_next=1
+        continue
+    fi
+    args+=("$arg")
+done
+exec "$REAL_LD" "${args[@]}"

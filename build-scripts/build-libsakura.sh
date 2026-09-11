@@ -81,12 +81,6 @@ if [[ -z "${CC:-}" ]]; then
     fi
 fi
 
-# ---- Xcode 16 / conda clang LTO workaround ------------------------
-# Source the shared helper that installs an ld wrapper to strip -lto_library.
-# No-op on ARM Mac and Linux.
-# shellcheck source=build-scripts/setup-intel-mac-ld.sh
-source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
-
 # Build libsakura
 mkdir -p build
 cd build
