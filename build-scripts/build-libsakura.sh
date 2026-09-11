@@ -62,11 +62,36 @@ fi
 
 echo "Completed update of $LIBSAKURA_DIR/libsakura/src/CMakeLists.txt"
 
+# ---- Compiler setup ------------------------------------------------
+# On conda-forge osx-64, the clang package does not create a generic 'c++'
+# symlink — only 'clang++' exists. Set CC/CXX explicitly so cmake doesn't
+# fall back to the broken 'c++' wrapper.
+if [[ -z "${CXX:-}" ]]; then
+    if command -v clang++ &>/dev/null; then
+        export CXX=clang++
+    elif command -v g++ &>/dev/null; then
+        export CXX=g++
+    fi
+fi
+if [[ -z "${CC:-}" ]]; then
+    if command -v clang &>/dev/null; then
+        export CC=clang
+    elif command -v gcc &>/dev/null; then
+        export CC=gcc
+    fi
+fi
+
+# ---- Xcode 16 / conda clang LTO workaround ------------------------
+# Source the shared helper that installs an ld wrapper to strip -lto_library.
+# No-op on ARM Mac and Linux.
+# shellcheck source=build-scripts/setup-intel-mac-ld.sh
+source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
+
 # Build libsakura
 mkdir -p build
 cd build
 
-echo "libsakura: cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX='$CONDA_PREFIX' -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH='$CONDA_PREFIX' -DBUILD_DOC:BOOL=OFF -DPYTHON_BINDING:BOOL=OFF -DSIMD_ARCH=GENERIC -DENABLE_TEST:BOOL=OFF"
+echo "libsakura: cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX='$CONDA_PREFIX' -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH='$CONDA_PREFIX' -DCMAKE_CXX_STANDARD=14 -DBUILD_DOC:BOOL=OFF -DPYTHON_BINDING:BOOL=OFF -DSIMD_ARCH=GENERIC -DENABLE_TEST:BOOL=OFF"
 
 cmake .. \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -74,6 +99,9 @@ cmake .. \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
     -DCMAKE_CXX_STANDARD=14 \
+    -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+    -DCMAKE_CXX_COMPILER="${CXX}" \
+    -DCMAKE_C_COMPILER="${CC}" \
     -DBUILD_DOC:BOOL=OFF \
     -DPYTHON_BINDING:BOOL=OFF \
     -DSIMD_ARCH=GENERIC \

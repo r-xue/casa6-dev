@@ -43,6 +43,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
     export CC="clang"
     export CXX="clang++"
+    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
     export FC=gfortran  # Set Fortran compiler
     
     # Set OpenMP flags for macOS (handle unset variables properly)
@@ -90,7 +91,6 @@ else
     export FC="${FC:-gfortran}"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$(pwd)/../../casatools ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
-    
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=$FC -DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch"
 
     # RPATH handling (Linux / ELF).
