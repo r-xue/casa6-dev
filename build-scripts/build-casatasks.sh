@@ -53,19 +53,14 @@ echo "Building casatasks..."
 python setup.py build
 python setup.py bdist_wheel
 
-# Install with relaxed dependency checking
+# Install casatasks wheel without touching PyPI or overwriting local dependencies
 echo "Installing casatasks wheel..."
-# First try normal install
-if ! pip install dist/*.whl --force-reinstall; then
-    echo "Normal install failed, trying with --no-deps..."
-    # If that fails, install without dependency checking
-    pip install dist/*.whl --force-reinstall --no-deps
-    
-    echo "Verifying installation..."
-    if ! python -c "import casatasks; print('casatasks imported successfully')"; then
-        echo "Installation verification failed!"
-        exit 1
-    fi
+pip install dist/*.whl --force-reinstall --no-deps --no-index
+
+echo "Verifying installation..."
+if ! python -c "import casatasks; print('casatasks imported successfully')"; then
+    echo "Installation verification failed!"
+    exit 1
 fi
 
 echo "ccache statistics after build:"

@@ -87,7 +87,7 @@ ls -lh dist/*.whl
 
 # Install the wheel
 echo "Installing casatools wheel..."
-pip install dist/*.whl --force-reinstall --no-deps
+pip install dist/*.whl --force-reinstall --no-deps --no-index
 
 echo "ccache statistics after build:"
 ccache --show-stats
