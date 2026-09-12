@@ -102,12 +102,13 @@ else
     CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON"
 fi
 
-# ccache configuration
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
-export CCACHE_BASEDIR="$PROJECT_ROOT"
-export CCACHE_NOHASHDIR=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."

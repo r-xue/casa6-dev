@@ -23,17 +23,20 @@ rm -rf build/ dist/ *.egg-info/
 
 # Set environment variables
 export CASACPP_ROOT="$CONDA_PREFIX"
-export CASA_BUILD_TYPE="Release"
+export CASA_BUILD_TYPE="${CASA_BUILD_TYPE:-Release}"
+export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+export CMAKE_TOOLCHAIN_FILE="${CMAKE_TOOLCHAIN_FILE:-$PROJECT_ROOT/build-scripts/cmake/casatools-release.cmake}"
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
 export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
 
-# ccache configuration - use project-wide ccache directory
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
-export CCACHE_BASEDIR="$PROJECT_ROOT"
-export CCACHE_NOHASHDIR=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings
@@ -62,6 +65,8 @@ ccache --show-stats
 echo "Build environment:"
 echo "  CASACPP_ROOT=$CASACPP_ROOT"
 echo "  CASA_BUILD_TYPE=$CASA_BUILD_TYPE"
+echo "  CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE"
+echo "  CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"
 echo "  CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL"
 echo "  CC=$CC"
 echo "  CXX=$CXX"
@@ -77,9 +82,12 @@ echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 echo "Building casatools wheel..."
 python setup.py bdist_wheel
 
+echo "Generated wheel artifacts:"
+ls -lh dist/*.whl
+
 # Install the wheel
 echo "Installing casatools wheel..."
-pip install dist/*.whl --force-reinstall --no-deps
+pip install dist/*.whl --force-reinstall --no-deps --no-index
 
 echo "ccache statistics after build:"
 ccache --show-stats

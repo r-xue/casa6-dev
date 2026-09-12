@@ -21,10 +21,13 @@ cd src/casa6/casatasks
 echo "Cleaning previous builds..."
 rm -rf build/ dist/ *.egg-info/
 
-# ccache configuration - use project-wide ccache directory
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."
@@ -50,19 +53,14 @@ echo "Building casatasks..."
 python setup.py build
 python setup.py bdist_wheel
 
-# Install with relaxed dependency checking
+# Install casatasks wheel without touching PyPI or overwriting local dependencies
 echo "Installing casatasks wheel..."
-# First try normal install
-if ! pip install dist/*.whl --force-reinstall; then
-    echo "Normal install failed, trying with --no-deps..."
-    # If that fails, install without dependency checking
-    pip install dist/*.whl --force-reinstall --no-deps
-    
-    echo "Verifying installation..."
-    if ! python -c "import casatasks; print('casatasks imported successfully')"; then
-        echo "Installation verification failed!"
-        exit 1
-    fi
+pip install dist/*.whl --force-reinstall --no-deps --no-index
+
+echo "Verifying installation..."
+if ! python -c "import casatasks; print('casatasks imported successfully')"; then
+    echo "Installation verification failed!"
+    exit 1
 fi
 
 echo "ccache statistics after build:"

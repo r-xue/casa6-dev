@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
-      - 'fix/*'
-      - 'feat/*'
-      - 'feature/*'
       - 'release/*'
       - 'ci/*'
     paths-ignore:
       - '**.md'
+      - '**.rst'
       - 'docs/**'
   pull_request:
     branches:
@@ -18,15 +16,46 @@ on:
       - 'ci/*'
       - 'feat/*'
       - 'feature/*'
+      - 'fix/*'
+    paths-ignore:
+      - '**.md'
+      - '**.rst'
+      - 'docs/**'
+  # Reserved for future use: Nightly schedule to test full matrix & experimental targets
+  # schedule:
+  #   - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       casa_branch:
-        description: 'CASA6 branch/tag to build (empty for default)'
+        description: 'CASA6 branch or tag'
         required: false
         default: ''
         type: string
+      preset:
+        description: 'Target preset'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'smoke'
+          - 'dev'
+          - 'cpu-only'
+          - 'gpu-only'
+          - 'mpi-only'
+      platform:
+        description: 'Platform filter'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'linux-x86_64'
+          - 'linux-arm64'
+          - 'macos-arm64'
+          - 'macos-intel'
       python_version:
-        description: 'Python version to build (all, 3.12, 3.13, 3.14)'
+        description: 'Python version'
         required: false
         default: 'all'
         type: choice
@@ -37,7 +66,9 @@ on:
           - '3.14'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{
+    github.event_name == 'workflow_dispatch' && github.run_id ||
+    (github.event.pull_request.head.ref || github.ref_name) }}
   cancel-in-progress: true
 
 jobs:
@@ -51,12 +82,26 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Setup Pixi for pre-flight check
+        uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          pixi-version: latest
+          run-install: false
+
+      - name: Pre-flight lockfile validation
+        run: pixi lock --check
 
       - name: Generate matrix JSON
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          IS_DRAFT: ${{ github.event.pull_request.draft || false }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          PRESET: ${{ inputs.preset || 'all' }}
+          PLATFORM: ${{ inputs.platform || 'all' }}
           PY_VERSION: ${{ inputs.python_version || 'all' }}
         run: |
           python3 - << 'PYEOF'
@@ -104,6 +149,16 @@ jobs:
                   exp=True,
               ),
 
+              # Linux x86_64 with OpenMPI support
+              target(
+                  name="Linux x86_64 MPI (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-mpi",
+                  arch="linux-64-mpi-cp312",
+                  pyver="3.12",
+                  pr=True,
+              ),
+
               # Linux x86_64 with GPU (CUDA) support
               target(
                   name="Linux x86_64 GPU (Python 3.12)",
@@ -132,6 +187,16 @@ jobs:
                   flags="--platform linux-64-cuda",
               ),
 
+              # Linux x86_64 GPU with OpenMPI support
+              target(
+                  name="Linux x86_64 GPU+MPI (Python 3.12)",
+                  os="ubuntu-24.04",
+                  env="build-linux-gpu-mpi",
+                  arch="linux-64-cuda-mpi-cp312",
+                  pyver="3.12",
+                  flags="--platform linux-64-cuda",
+              ),
+
               # macOS Apple Silicon (ARM64)
               target(
                   name="macOS ARM64 (Python 3.12)",
@@ -157,6 +222,15 @@ jobs:
                   exp=True,
               ),
 
+              # macOS Apple Silicon (ARM64) with OpenMPI support
+              target(
+                  name="macOS ARM64 MPI (Python 3.12)",
+                  os="macos-14",
+                  env="build-arm-mpi",
+                  arch="osx-arm64-mpi-cp312",
+                  pyver="3.12",
+              ),
+
               # macOS Intel (x86_64)
               target(
                   name="macOS Intel (Python 3.12)",
@@ -164,6 +238,7 @@ jobs:
                   env="build-intel-312",
                   arch="osx-64-cp312",
                   pyver="3.12",
+                  pr=True,
                   exp=True,
               ),
               target(
@@ -175,6 +250,16 @@ jobs:
                   exp=True,
               ),
 
+              # macOS Intel (x86_64) with OpenMPI support
+              target(
+                  name="macOS Intel MPI (Python 3.12)",
+                  os="macos-15-intel",
+                  env="build-intel-mpi",
+                  arch="osx-64-mpi-cp312",
+                  pyver="3.12",
+                  exp=True,
+              ),
+
               # Linux ARM64
               target(
                   name="Linux ARM64 (Python 3.12)",
@@ -182,6 +267,7 @@ jobs:
                   env="build-linux-312",
                   arch="linux-aarch64-cp312",
                   pyver="3.12",
+                  pr=True,
               ),
               target(
                   name="Linux ARM64 (Python 3.13)",
@@ -198,18 +284,129 @@ jobs:
                   pyver="3.14",
                   exp=True,
               ),
+
+              # Linux ARM64 with OpenMPI support
+              target(
+                  name="Linux ARM64 MPI (Python 3.12)",
+                  os="ubuntu-24.04-arm",
+                  env="build-linux-mpi",
+                  arch="linux-aarch64-mpi-cp312",
+                  pyver="3.12",
+              ),
           ]
 
           event_name = os.environ.get("EVENT_NAME", "")
+          ref_name = os.environ.get("REF_NAME", "")
+          preset = os.environ.get("PRESET", "all")
+          platform = os.environ.get("PLATFORM", "all")
           py_choice = os.environ.get("PY_VERSION", "all")
+          labels_raw = os.environ.get("PR_LABELS", "[]")
+          is_draft = os.environ.get("IS_DRAFT", "false").lower() == "true"
+
+          try:
+              pr_labels = [l.get("name", "") for l in json.loads(labels_raw or "[]")]
+          except Exception:
+              pr_labels = []
 
           if event_name == "pull_request":
-              filtered = [t for t in targets if t.get("pr_enabled")]
-          elif py_choice != "all":
-              filtered = [t for t in targets if t.get("pyver") == py_choice]
-          else:
-              filtered = targets
+              if "ci:full-matrix" in pr_labels:
+                  filtered = list(targets)
+              elif is_draft and not any(l in pr_labels for l in ("ci:arm64", "ci:py313", "ci:intel-mac")):
+                  # Draft PR throttling: 1 fast target for syntax and compiler check
+                  filtered = [t for t in targets if t["arch"] == "linux-64-cp312"]
+              else:
+                  # Base PR smoke targets (all 6 platform defaults)
+                  selected = [t for t in targets if t.get("pr_enabled")]
+                  # Label-driven expansions
+                  if "ci:arm64" in pr_labels:
+                      selected += [t for t in targets if "aarch64" in t["arch"]]
+                  if "ci:py313" in pr_labels:
+                      selected += [t for t in targets if t["pyver"] == "3.13" and not t.get("experimental")]
+                  if "ci:intel-mac" in pr_labels:
+                      selected += [t for t in targets if t["arch"].startswith("osx-64")]
+                  # Deduplicate preserving order
+                  seen = set()
+                  filtered = []
+                  for t in selected:
+                      if t["arch"] not in seen:
+                          seen.add(t["arch"])
+                          filtered.append(t)
 
+          elif event_name == "push":
+              is_feature_branch = (
+                  ref_name.startswith("feat/")
+                  or ref_name.startswith("feature/")
+                  or ref_name.startswith("fix/")
+              )
+              if is_feature_branch:
+                  # Dev tier: 6 platform defaults + Linux CPU (3.13)
+                  dev_archs = {
+                      "linux-64-cp312",
+                      "linux-64-mpi-cp312",
+                      "linux-64-cuda-cp312",
+                      "osx-arm64-cp312",
+                      "osx-64-cp312",
+                      "linux-aarch64-cp312",
+                      "linux-64-cp313",
+                  }
+                  filtered = [t for t in targets if t["arch"] in dev_archs]
+              else:
+                  # main, release/*, ci/*: full matrix
+                  filtered = list(targets)
+
+          elif event_name == "schedule":
+              # Nightly schedule: full matrix including experimental
+              filtered = list(targets)
+
+          elif event_name == "workflow_dispatch":
+              filtered = list(targets)
+
+              # Filter by preset
+              if preset == "smoke":
+                  filtered = [t for t in filtered if t.get("pr_enabled")]
+              elif preset == "dev":
+                  dev_archs = {
+                      "linux-64-cp312",
+                      "linux-64-mpi-cp312",
+                      "linux-64-cuda-cp312",
+                      "osx-arm64-cp312",
+                      "osx-64-cp312",
+                      "linux-aarch64-cp312",
+                      "linux-64-cp313",
+                  }
+                  filtered = [t for t in filtered if t["arch"] in dev_archs]
+              elif preset == "cpu-only":
+                  filtered = [
+                      t for t in filtered
+                      if "cuda" not in t["arch"] and "mpi" not in t["arch"]
+                  ]
+              elif preset == "gpu-only":
+                  filtered = [t for t in filtered if "cuda" in t["arch"]]
+              elif preset == "mpi-only":
+                  filtered = [t for t in filtered if "mpi" in t["arch"]]
+
+              # Filter by platform
+              if platform == "linux-x86_64":
+                  filtered = [t for t in filtered if t["arch"].startswith("linux-64")]
+              elif platform == "linux-arm64":
+                  filtered = [t for t in filtered if t["arch"].startswith("linux-aarch64")]
+              elif platform == "macos-arm64":
+                  filtered = [t for t in filtered if t["arch"].startswith("osx-arm64")]
+              elif platform == "macos-intel":
+                  filtered = [t for t in filtered if t["arch"].startswith("osx-64")]
+
+              # Filter by Python version
+              if py_choice != "all":
+                  filtered = [t for t in filtered if t.get("pyver") == py_choice]
+
+          else:
+              filtered = list(targets)
+
+          if not filtered:
+              print("Warning: Matrix filter resulted in 0 targets. Falling back to PR smoke targets.")
+              filtered = [t for t in targets if t.get("pr_enabled")]
+
+          print(f"Configured {len(filtered)} targets for event '{event_name}' (ref: '{ref_name}')")
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"matrix={json.dumps(filtered)}\n")
           PYEOF
@@ -234,12 +431,10 @@ jobs:
 
       - name: Restore cached CASA6 source
         id: source-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/casa6
-          key: >-
-            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{
-              steps.casa-sha.outputs.patch_hash }}
+          key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}
           restore-keys: |
             casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-
             casa6-source-
@@ -269,7 +464,7 @@ jobs:
 
       - name: Restore cached HPG source
         id: hpg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/hpg
           key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}
@@ -291,7 +486,7 @@ jobs:
           tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src "${ITEMS[@]}"
 
       - name: Upload CASA6 source artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts/casa6-source.tar
@@ -314,10 +509,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.10.2
         env:
           CONDA_OVERRIDE_CUDA: "12"
         with:
@@ -326,17 +521,15 @@ jobs:
           cache: true
 
       - name: Setup ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: tmp/ccache
-          key: >-
-            ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{
-              github.run_id }}-${{ github.run_attempt }}
+          key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 
       - name: Download CASA6 source artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts
@@ -346,13 +539,6 @@ jobs:
           mkdir -p src
           tar -xf /tmp/casa6-artifacts/casa6-source.tar -C src
           rm -f /tmp/casa6-artifacts/casa6-source.tar
-
-      - name: Verify and configure CASA6 source
-        env:
-          CASA_BRANCH: ${{ inputs.casa_branch }}
-          CASA_SKIP_REMOTE_UPDATE: "true"
-        run: |
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} clone-repo
 
       - name: Build all components (casacore, casacpp, casatools, casatasks)
         run: |
@@ -371,7 +557,7 @@ jobs:
             print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: casa6-wheels-${{ matrix.arch }}
           path: |
