@@ -468,9 +468,12 @@ jobs:
         with:
           path: src/hpg
           key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}
+          restore-keys: |
+            hpg-source-
 
       - name: Clone or update HPG source
         env:
+          HPG_OPTIONAL: "true"
           CASA_SKIP_REMOTE_UPDATE: ${{
             steps.hpg-cache.outputs.cache-hit || 'false' }}
         run: |
