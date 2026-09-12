@@ -80,10 +80,10 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Pixi for pre-flight check
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.10.2
         with:
           pixi-version: latest
           run-install: false
@@ -429,7 +429,7 @@ jobs:
 
       - name: Restore cached CASA6 source
         id: source-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/casa6
           key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}
@@ -462,7 +462,7 @@ jobs:
 
       - name: Restore cached HPG source
         id: hpg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/hpg
           key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}
@@ -484,7 +484,7 @@ jobs:
           tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src "${ITEMS[@]}"
 
       - name: Upload CASA6 source artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts/casa6-source.tar
@@ -507,10 +507,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.10.2
         env:
           CONDA_OVERRIDE_CUDA: "12"
         with:
@@ -519,7 +519,7 @@ jobs:
           cache: true
 
       - name: Setup ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: tmp/ccache
           key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -527,7 +527,7 @@ jobs:
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 
       - name: Download CASA6 source artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts
@@ -555,7 +555,7 @@ jobs:
             print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: casa6-wheels-${{ matrix.arch }}
           path: |
