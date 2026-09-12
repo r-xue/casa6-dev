@@ -432,9 +432,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src/casa6
-          key: >-
-            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{
-              steps.casa-sha.outputs.patch_hash }}
+          key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}
           restore-keys: |
             casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-
             casa6-source-
@@ -524,9 +522,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/ccache
-          key: >-
-            ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{
-              github.run_id }}-${{ github.run_attempt }}
+          key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 
@@ -541,13 +537,6 @@ jobs:
           mkdir -p src
           tar -xf /tmp/casa6-artifacts/casa6-source.tar -C src
           rm -f /tmp/casa6-artifacts/casa6-source.tar
-
-      - name: Verify and configure CASA6 source
-        env:
-          CASA_BRANCH: ${{ inputs.casa_branch }}
-          CASA_SKIP_REMOTE_UPDATE: "true"
-        run: |
-          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} clone-repo
 
       - name: Build all components (casacore, casacpp, casatools, casatasks)
         run: |

@@ -28,12 +28,13 @@ export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfi
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
 export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
 
-# ccache configuration - use project-wide ccache directory
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
-export CCACHE_BASEDIR="$PROJECT_ROOT"
-export CCACHE_NOHASHDIR=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings

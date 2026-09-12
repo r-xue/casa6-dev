@@ -15,6 +15,12 @@ CMAKE_C_COMPILER_LAUNCHER = "ccache"
 CMAKE_CXX_COMPILER_LAUNCHER = "ccache"
 CMAKE_PREFIX_PATH = "$CONDA_PREFIX"
 PKG_CONFIG_PATH = "$CONDA_PREFIX/lib/pkgconfig"
+CCACHE_DIR = "$PIXI_PROJECT_ROOT/tmp/ccache"
+CCACHE_MAXSIZE = "2G"
+CCACHE_COMPRESS = "1"
+CCACHE_BASEDIR = "$PIXI_PROJECT_ROOT"
+CCACHE_NOHASHDIR = "1"
+CCACHE_SLOPPINESS = "include_file_ctime,include_file_mtime,time_macros"
 
 # ============================================================
 # Base dependencies (no python pin here — features own that)
