@@ -417,7 +417,7 @@ jobs:
           BRANCH="${{ inputs.casa_branch || 'master' }}"
           REMOTE="https://open-bitbucket.nrao.edu/scm/casa/casa6.git"
           # Query remote HEAD commit without downloading any repo data
-          SHA=$(git ls-remote --heads --tags "$REMOTE" "$BRANCH" \
+          SHA=$(timeout 20s git ls-remote --heads --tags "$REMOTE" "$BRANCH" 2>/dev/null \
             | awk '{print $1}' | head -n 1) || SHA=""
           if [[ -z "$SHA" ]]; then
             echo "Could not resolve remote SHA; using fallback."

@@ -87,18 +87,26 @@ else
                 echo "Stashing local changes..."
                 git stash push -m "Auto-stash before update $(date)"
             fi
-            retry_cmd git fetch origin
-            
-            # Checkout and update to specified branch
-            echo "Switching to branch/tag: $CASA_BRANCH"
-            git checkout "$CASA_BRANCH"
-            git reset --hard "origin/$CASA_BRANCH" 2>/dev/null || {
-                echo "Could not reset to origin/$CASA_BRANCH, assuming it's a tag or local branch"
-                git reset --hard "$CASA_BRANCH" 2>/dev/null || echo "Using current HEAD"
-            }
+            if ! retry_cmd timeout 60s git fetch origin; then
+                echo "::warning::Failed to fetch updates from Bitbucket; continuing with cached repository."
+            else
+                # Checkout and update to specified branch
+                echo "Switching to branch/tag: $CASA_BRANCH"
+                git checkout "$CASA_BRANCH"
+                git reset --hard "origin/$CASA_BRANCH" 2>/dev/null || {
+                    echo "Could not reset to origin/$CASA_BRANCH, assuming it's a tag or local branch"
+                    git reset --hard "$CASA_BRANCH" 2>/dev/null || echo "Using current HEAD"
+                }
+            fi
 
             echo "Updating git submodules..."
-            retry_cmd git submodule update --init --recursive --jobs 4 --depth 1
+            retry_cmd timeout 60s git submodule update --init --recursive --jobs 4 --depth 1 || {
+                if [[ -f "casatools/casacore/CMakeLists.txt" ]]; then
+                    echo "::warning::Submodule update failed; continuing with cached submodules."
+                else
+                    exit 1
+                fi
+            }
             
             # Apply local patches after update
             if [[ -f "../../patches/apply-patches.sh" ]]; then
