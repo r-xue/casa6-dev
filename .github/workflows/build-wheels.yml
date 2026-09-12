@@ -486,7 +486,7 @@ jobs:
           tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src "${ITEMS[@]}"
 
       - name: Upload CASA6 source artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts/casa6-source.tar
@@ -529,7 +529,7 @@ jobs:
             ccache-${{ matrix.arch }}-${{ matrix.environment }}-
 
       - name: Download CASA6 source artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: casa6-source
           path: /tmp/casa6-artifacts
@@ -557,7 +557,7 @@ jobs:
             print('✓ casatasks imported successfully')"
 
       - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: casa6-wheels-${{ matrix.arch }}
           path: |
