@@ -23,7 +23,9 @@ rm -rf build/ dist/ *.egg-info/
 
 # Set environment variables
 export CASACPP_ROOT="$CONDA_PREFIX"
-export CASA_BUILD_TYPE="Release"
+export CASA_BUILD_TYPE="${CASA_BUILD_TYPE:-Release}"
+export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+export CMAKE_TOOLCHAIN_FILE="${CMAKE_TOOLCHAIN_FILE:-$PROJECT_ROOT/build-scripts/cmake/casatools-release.cmake}"
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
 export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
@@ -63,6 +65,8 @@ ccache --show-stats
 echo "Build environment:"
 echo "  CASACPP_ROOT=$CASACPP_ROOT"
 echo "  CASA_BUILD_TYPE=$CASA_BUILD_TYPE"
+echo "  CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE"
+echo "  CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"
 echo "  CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL"
 echo "  CC=$CC"
 echo "  CXX=$CXX"
@@ -77,6 +81,9 @@ echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 # Build casatools wheel
 echo "Building casatools wheel..."
 python setup.py bdist_wheel
+
+echo "Generated wheel artifacts:"
+ls -lh dist/*.whl
 
 # Install the wheel
 echo "Installing casatools wheel..."
