@@ -10,7 +10,7 @@ if [[ -z "${CONDA_PREFIX:-}" ]]; then
     exit 1
 fi
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 echo "Project root: $PROJECT_ROOT"
 echo "Using conda environment: $CONDA_PREFIX"
 
@@ -23,9 +23,8 @@ cd build
 # Platform-specific configuration
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS specific settings
-    export CC="ccache clang"
-    export CXX="ccache clang++"
-    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
+    export CC="clang"
+    export CXX="clang++"
     export FC=gfortran
     
     # Set OpenMP flags for macOS
@@ -40,26 +39,23 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=gfortran -DOpenMP_ROOT=$CONDA_PREFIX"
     
 else
-    # Linux specific settings.
-    # Preserve whatever toolchain the pixi env already set (CC/CXX/FC) instead
-    # of hardcoding host gcc/g++/gfortran, wrapping with ccache only if it
-    # isn't already wrapped. -fallow-argument-mismatch is needed for modern
-    # gfortran to accept legacy FFTPack argument-type mismatches.
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
+    # Linux specific settings
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export FC="${FC:-gfortran}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
     export CPPFLAGS="-I$CONDA_PREFIX/include ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     
     CMAKE_EXTRA_FLAGS="-DCMAKE_Fortran_COMPILER=$FC -DCMAKE_Fortran_FLAGS=-fallow-argument-mismatch"
 fi
 
-# ccache configuration
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 # Initialize ccache directory and show stats
 echo "Setting up ccache..."
@@ -78,6 +74,17 @@ echo "  LDFLAGS=$LDFLAGS"
 echo "  CCACHE_DIR=$CCACHE_DIR"
 echo "  CCACHE_MAXSIZE=$CCACHE_MAXSIZE"
 
+# Testing toggle (default: false / disabled for fast builds)
+# Can be enabled via environment variable: CASA_BUILD_TESTS=true or BUILD_TESTING=true/ON
+BUILD_TESTS="${CASA_BUILD_TESTS:-${BUILD_TESTING:-false}}"
+if [[ "$BUILD_TESTS" == "true" || "$BUILD_TESTS" == "TRUE" || "$BUILD_TESTS" == "ON" || "$BUILD_TESTS" == "1" ]]; then
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=ON -DBUILD_APPS=ON"
+    echo "C++ testing: ENABLED"
+else
+    CMAKE_TEST_FLAGS="-DBUILD_TESTING=OFF -DBUILD_APPS=OFF"
+    echo "C++ testing: DISABLED (set CASA_BUILD_TESTS=true to enable)"
+fi
+
 # Configure casacore with CMake
 echo "Configuring casacore with CMake..."
 cmake .. \
@@ -92,21 +99,12 @@ cmake .. \
     -DUSE_OPENMP=ON \
     -DUSE_THREADS=ON \
     -DBoost_NO_BOOST_CMAKE=ON \
+    $CMAKE_TEST_FLAGS \
     $CMAKE_EXTRA_FLAGS
 
-# Determine number of cores for parallel build
-if command -v nproc &> /dev/null; then
-    NCORES=$(nproc)
-elif command -v sysctl &> /dev/null; then
-    NCORES=$(sysctl -n hw.ncpu)
-else
-    NCORES=4
-fi
-
-echo "Building casacore with $NCORES parallel jobs..."
-
 # Build
-cmake --build . --parallel $NCORES
+echo "Building casacore in parallel..."
+cmake --build . --parallel
 
 # Install
 echo "Installing casacore..."

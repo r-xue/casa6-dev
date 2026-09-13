@@ -11,7 +11,7 @@ if [[ -z "${CONDA_PREFIX:-}" ]]; then
 fi
 
 # Set project root directory
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 echo "Project root: $PROJECT_ROOT"
 echo "Using conda environment: $CONDA_PREFIX"
 
@@ -23,37 +23,33 @@ rm -rf build/ dist/ *.egg-info/
 
 # Set environment variables
 export CASACPP_ROOT="$CONDA_PREFIX"
-export CASA_BUILD_TYPE="Release"
-# [activation.env] already exports these for the pixi shell itself, but
-# re-export them explicitly here too so they are guaranteed to reach the
-# cmake subprocess setup.py spawns, regardless of how it's invoked below
-# (build_ext in-process vs. the pip/wheel fallback paths).
+export CASA_BUILD_TYPE="${CASA_BUILD_TYPE:-Release}"
+export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+export CMAKE_TOOLCHAIN_FILE="${CMAKE_TOOLCHAIN_FILE:-$PROJECT_ROOT/build-scripts/cmake/casatools-release.cmake}"
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$CONDA_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 export CMAKE_PREFIX_PATH="$CONDA_PREFIX:${CMAKE_PREFIX_PATH:-}"
+export CMAKE_BUILD_PARALLEL_LEVEL=$(python3 -c 'import os; print(os.cpu_count() or 4)')
 
-# ccache configuration - use project-wide ccache directory
-export CCACHE_DIR="$PROJECT_ROOT/tmp/ccache"
-export CCACHE_MAXSIZE="15G"
-export CCACHE_COMPRESS=1
+# ccache configuration (inherited from pixi activation.env with fallback)
+export CCACHE_DIR="${CCACHE_DIR:-$PROJECT_ROOT/tmp/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_COMPRESS="${CCACHE_COMPRESS:-1}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-$PROJECT_ROOT}"
+export CCACHE_NOHASHDIR="${CCACHE_NOHASHDIR:-1}"
+export CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS:-include_file_ctime,include_file_mtime,time_macros}"
 
 NUMPY_INCLUDE=`python -c 'import numpy as np; print(np.get_include())'`
 # Platform-specific compiler settings
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    export CC="ccache clang"
-    export CXX="ccache clang++"
-    source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
+    export CC="clang"
+    export CXX="clang++"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
     export CXXFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CXXFLAGS:-}"
     export CFLAGS="-Wno-error=deprecated-declarations -Wno-deprecated-declarations ${CFLAGS:-}"
 else
-    # Preserve whatever toolchain the pixi env already set (CC/CXX) instead
-    # of hardcoding host gcc/g++, wrapping with ccache only if it isn't
-    # already wrapped.
-    CC_BIN="${CC:-gcc}"
-    CXX_BIN="${CXX:-g++}"
-    [[ "$CC_BIN" == ccache* ]] && export CC="$CC_BIN" || export CC="ccache $CC_BIN"
-    [[ "$CXX_BIN" == ccache* ]] && export CXX="$CXX_BIN" || export CXX="ccache $CXX_BIN"
+    export CC="${CC:-gcc}"
+    export CXX="${CXX:-g++}"
     export CPPFLAGS="-I$CONDA_PREFIX/include -I$NUMPY_INCLUDE ${CPPFLAGS:-}"
     export LDFLAGS="-L$CONDA_PREFIX/lib ${LDFLAGS:-}"
 fi
@@ -69,6 +65,9 @@ ccache --show-stats
 echo "Build environment:"
 echo "  CASACPP_ROOT=$CASACPP_ROOT"
 echo "  CASA_BUILD_TYPE=$CASA_BUILD_TYPE"
+echo "  CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE"
+echo "  CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE"
+echo "  CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL"
 echo "  CC=$CC"
 echo "  CXX=$CXX"
 echo "  CCACHE_DIR=$CCACHE_DIR"
@@ -79,37 +78,16 @@ echo "  LDFLAGS=$LDFLAGS"
 echo "  CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH"
 echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 
-# Try building with explicit build directory creation
-echo "Building casatools with setuptools..."
-
-# First, try the standard build process
-python setup.py build_ext --inplace || {
-    echo "Standard build failed, trying alternative approach..."
-    
-    # Create the expected build directory structure manually
-    echo "Creating build directory structure manually..."
-    mkdir -p build/lib.*/casatools
-    
-    # Try building again
-    python setup.py build_ext --inplace || {
-        echo "Build still failing, trying with different Python build approach..."
-        
-        # Try using pip build instead
-        pip install -e . --no-deps || {
-            echo "All build approaches failed. Manual intervention may be required."
-            echo "Check the casatools setup.py configuration and build requirements."
-            exit 1
-        }
-    }
-}
-
-# If we get here, one of the build approaches worked
-echo "Building wheel..."
+# Build casatools wheel
+echo "Building casatools wheel..."
 python setup.py bdist_wheel
+
+echo "Generated wheel artifacts:"
+ls -lh dist/*.whl
 
 # Install the wheel
 echo "Installing casatools wheel..."
-pip install dist/*.whl --force-reinstall --no-deps
+pip install dist/*.whl --force-reinstall --no-deps --no-index
 
 echo "ccache statistics after build:"
 ccache --show-stats

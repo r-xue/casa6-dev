@@ -1,29 +1,44 @@
 #!/bin/bash
 set -euo pipefail
 
-# Fetch libsakura if URL is provided
+# Helper function to retry network commands on transient failure
+retry_cmd() {
+    local -r max_attempts="${RETRY_MAX:-4}"
+    local -r delay="${RETRY_DELAY:-5}"
+    local attempt=1
+    until "$@"; do
+        if (( attempt >= max_attempts )); then
+            echo "Error: Command '$*' failed after $max_attempts attempts." >&2
+            return 1
+        fi
+        echo "Command '$*' failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..." >&2
+        sleep "$delay"
+        ((attempt++))
+    done
+}
+
+# Fetch libsakura source if LIBSAKURA_URL is explicitly set
 if [[ -n "${LIBSAKURA_URL:-}" ]]; then
     echo "Fetching libsakura from: $LIBSAKURA_URL"
     mkdir -p src
-    (cd src && (curl -fsSL "${LIBSAKURA_URL}" | tar -zxf - || { echo "Download or extraction of libsakura failed"; exit 1; } ) )
+    (cd src && (retry_cmd curl -fsSL "${LIBSAKURA_URL}" | tar -zxf - || { echo "Download or extraction of libsakura failed"; exit 1; } ) )
 else
-    echo "No LIBSAKURA_URL provided, cannot download libsakura"
-    exit 1
+    echo "LIBSAKURA_URL not set — using conda-installed libsakura (default)"
 fi
 
 echo "Cloning CASA6 repository..."
 
 # Check for development mode flag
 DEVELOPMENT_MODE=${CASA_DEVELOPMENT_MODE:-false}
+SKIP_REMOTE_UPDATE=${CASA_SKIP_REMOTE_UPDATE:-false}
 
-# Check for branch/tag specification
-if [[ -z "${CASA_BRANCH:-}" ]] && [[ -d "src/casa6/.git" ]]; then
-    # Use current branch if no branch specified and repo exists
-    CASA_BRANCH=$(cd src/casa6 && git branch --show-current 2>/dev/null || echo "master")
-    echo "No CASA_BRANCH specified, staying on current branch: $CASA_BRANCH"
-else
-    CASA_BRANCH=${CASA_BRANCH:-master}
+# Check for branch/tag specification (upstream default is 'master')
+CASA_BRANCH=${CASA_BRANCH:-}
+if [[ -z "$CASA_BRANCH" ]] && [[ -d "src/casa6/.git" ]]; then
+    CASA_BRANCH=$(cd src/casa6 && git branch --show-current 2>/dev/null || echo "")
 fi
+CASA_BRANCH=${CASA_BRANCH:-master}
+echo "Using CASA_BRANCH: $CASA_BRANCH"
 
 if [ ! -d "src" ]; then
     mkdir -p src
@@ -31,20 +46,20 @@ fi
 
 cd src
 
-if [ ! -d "casa6" ]; then
-    echo "Cloning fresh repository..."
-    git clone https://open-bitbucket.nrao.edu/scm/casa/casa6.git
+if [ ! -d "casa6/.git" ]; then
+    echo "Cloning fresh repository (blobless clone)..."
+    rm -rf casa6
+    retry_cmd git clone --filter=blob:none https://open-bitbucket.nrao.edu/scm/casa/casa6.git
     cd casa6
     
-    # Checkout specified branch/tag
-    if [[ "$CASA_BRANCH" != "master" ]]; then
+    # Checkout specified branch/tag if provided
+    if [[ -n "$CASA_BRANCH" ]]; then
         echo "Checking out branch/tag: $CASA_BRANCH"
         git checkout "$CASA_BRANCH"
     fi
 
     echo "Initializing and updating git submodules..."
-    git submodule init
-    git submodule update --recursive
+    retry_cmd git submodule update --init --recursive --jobs 4 --depth 1
     
     # Apply local patches after initial clone
     if [[ -f "../../patches/apply-patches.sh" ]]; then
@@ -54,16 +69,15 @@ if [ ! -d "casa6" ]; then
 else
     cd casa6
     
-    if [[ "$DEVELOPMENT_MODE" == "true" ]]; then
-        echo "Development mode: Skipping git update to preserve local changes"
+    if [[ "$DEVELOPMENT_MODE" == "true" ]] || [[ "$SKIP_REMOTE_UPDATE" == "true" ]]; then
+        echo "Development/Prepared mode: Skipping git update to preserve local changes"
         echo "Current git status:"
         git status --porcelain || echo "Not a git repository (local changes preserved)"
         
         # Still check submodules in development mode
         if [[ -d ".git" ]] && [[ ! -f "casatools/casacore/CMakeLists.txt" ]]; then
             echo "Submodules appear to be missing, updating them..."
-            git submodule init
-            git submodule update --recursive
+            retry_cmd git submodule update --init --recursive --jobs 4 --depth 1
         fi
     else
         if [[ -d ".git" ]]; then
@@ -73,19 +87,26 @@ else
                 echo "Stashing local changes..."
                 git stash push -m "Auto-stash before update $(date)"
             fi
-            git fetch origin
-            
-            # Checkout and update to specified branch
-            echo "Switching to branch/tag: $CASA_BRANCH"
-            git checkout "$CASA_BRANCH"
-            git reset --hard "origin/$CASA_BRANCH" 2>/dev/null || {
-                echo "Could not reset to origin/$CASA_BRANCH, assuming it's a tag or local branch"
-                git reset --hard "$CASA_BRANCH" 2>/dev/null || echo "Using current HEAD"
-            }
+            if ! retry_cmd timeout 60s git fetch origin; then
+                echo "::warning::Failed to fetch updates from Bitbucket; continuing with cached repository."
+            else
+                # Checkout and update to specified branch
+                echo "Switching to branch/tag: $CASA_BRANCH"
+                git checkout "$CASA_BRANCH"
+                git reset --hard "origin/$CASA_BRANCH" 2>/dev/null || {
+                    echo "Could not reset to origin/$CASA_BRANCH, assuming it's a tag or local branch"
+                    git reset --hard "$CASA_BRANCH" 2>/dev/null || echo "Using current HEAD"
+                }
+            fi
 
             echo "Updating git submodules..."
-            git submodule init
-            git submodule update --recursive
+            retry_cmd timeout 60s git submodule update --init --recursive --jobs 4 --depth 1 || {
+                if [[ -f "casatools/casacore/CMakeLists.txt" ]]; then
+                    echo "::warning::Submodule update failed; continuing with cached submodules."
+                else
+                    exit 1
+                fi
+            }
             
             # Apply local patches after update
             if [[ -f "../../patches/apply-patches.sh" ]]; then

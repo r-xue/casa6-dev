@@ -14,22 +14,27 @@ apply_patch_simple() {
     fi
     
     echo "Applying $description..."
+    local status=0
     
     # Try to apply the patch, capture both stdout and stderr
-    if patch -p0 -N < "../../patches/$patch_file" 2>&1 | tee /tmp/patch_output.log; then
+    if patch -p0 -N < "../../patches/$patch_file" 2>&1 \
+       | tee /tmp/patch_output.log; then
         echo "✓ $description applied successfully"
     else
         # Check if it failed because already applied
-        if grep -q "Reversed.*already applied\|already applied" /tmp/patch_output.log; then
+        if grep -q "Reversed.*applied\|already applied" /tmp/patch_output.log; then
             echo "✓ $description already applied (skipping)"
         elif grep -q "FAILED\|reject" /tmp/patch_output.log; then
-            echo "✗ $description failed to apply - conflicts detected"
-            echo "Check the .rej files for details"
+            echo "✗ $description failed to apply - conflicts detected" >&2
+            echo "Check the .rej files for details" >&2
+            status=1
         else
-            echo "? $description - unclear result, check manually"
+            echo "? $description - unclear result, check manually" >&2
+            status=1
         fi
     fi
     rm -f /tmp/patch_output.log
+    return "$status"
 }
 
 # Apply patches in order
@@ -43,5 +48,12 @@ apply_patch_simple "casatools-wheel-libgcc-fix.patch" "fix casatool wheel bundli
 apply_patch_simple "casatasks-copy-ignore-existing.patch" "fix copy commands so they do not fail for existing dest"
 apply_patch_simple "casacore-remove-pipe.patch" "remove casacore -pipe flag which causes problems from intel macOS Sonoma (14.6.1)"
 apply_patch_simple "casacpp-remove-pipe.patch" "remove casacpp -pipe flag which causes problems from intel macOS Sonoma (14.6.1)"
+apply_patch_simple "casatools-py312-swig-typemaps.patch" "casatools Python 3.12 SWIG typemaps compatibility"
+apply_patch_simple "casatools-msmetadata-counting-iterator.patch" "casatools msmetadata counting_iterator operator== for C++17/libc++"
+
+apply_patch_simple "hpg-awvisresampler-segfault-fix.patch" "Fix HPG silent gridder failure and dynamic device fallback"
+apply_patch_simple "casatools-cuda-stub-fallback.patch" "casatools CUDA driver stub bundling and runtime CPU fallback"
+apply_patch_simple "casatools-hpg-clean-shutdown.patch" "Fix HPG/Kokkos CUDA shutdown crash on exit"
 
 echo "All patch operations completed"
+

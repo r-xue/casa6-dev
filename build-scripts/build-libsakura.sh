@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 
 # Find or download the extracted libsakura directory
 LIBSAKURA_DIR=$(find src -maxdepth 1 -name "sakura-*" -type d 2>/dev/null | head -1)
@@ -81,12 +81,6 @@ if [[ -z "${CC:-}" ]]; then
     fi
 fi
 
-# ---- Xcode 16 / conda clang LTO workaround ------------------------
-# Source the shared helper that installs an ld wrapper to strip -lto_library.
-# No-op on ARM Mac and Linux.
-# shellcheck source=build-scripts/setup-intel-mac-ld.sh
-source "${PROJECT_ROOT}/build-scripts/setup-intel-mac-ld.sh"
-
 # Build libsakura
 mkdir -p build
 cd build
@@ -107,7 +101,10 @@ cmake .. \
     -DSIMD_ARCH=GENERIC \
     -DENABLE_TEST:BOOL=OFF
 
-make
-make install
+echo "Building libsakura in parallel..."
+cmake --build . --parallel
+
+echo "Installing libsakura..."
+cmake --build . --target install
 
 echo "libsakura installed to $CONDA_PREFIX"
