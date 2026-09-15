@@ -1,0 +1,327 @@
+name: Publish Standalone CASA6 Wheels
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Nightly build at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      casa_branch:
+        description: 'Upstream CASA6 branch or tag'
+        required: false
+        default: 'master'
+        type: string
+      retention_days:
+        description: 'Days to retain release history (rolling cleanup)'
+        required: false
+        default: 7
+        type: number
+
+concurrency:
+  group: publish-standalone-wheels
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+  pages: write
+
+jobs:
+  # ============================================================================
+  # Prepare upstream CASA6 and HPG sources once (cached and shared)
+  # ============================================================================
+  prepare-source:
+    name: Prepare Source Archive
+    runs-on: ubuntu-latest
+    outputs:
+      casa_sha: ${{ steps.casa-sha.outputs.casa_sha }}
+      release_date: ${{ steps.date.outputs.date }}
+      release_tag: ${{ steps.date.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Compute release dates and tags
+        id: date
+        run: |
+          RELEASE_DATE=$(date +'%Y.%m.%d')
+          echo "date=$RELEASE_DATE" >> "$GITHUB_OUTPUT"
+          echo "tag=build-$RELEASE_DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Compute rolling week for cache freshness
+        id: cache-date
+        run: echo "week=$(date +%Y-W%W)" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve upstream CASA6 commit SHA
+        id: casa-sha
+        run: |
+          BRANCH="${{ inputs.casa_branch || 'master' }}"
+          REMOTE="https://open-bitbucket.nrao.edu/scm/casa/casa6.git"
+          # Query remote HEAD commit with 20s timeout
+          SHA=$(timeout 20s git ls-remote --heads --tags "$REMOTE" "$BRANCH" 2>/dev/null \
+            | awk '{print $1}' | head -n 1) || SHA=""
+          if [[ -z "$SHA" ]]; then
+            echo "Warning: Could not query remote SHA, falling back to local/default."
+            SHA="${{ github.sha }}"
+          fi
+          SHORT_CASA="${SHA:0:8}"
+          PATCH_HASH=$(sha256sum patches/* 2>/dev/null | sha256sum | cut -c1-8)
+          echo "casa_sha=$SHORT_CASA" >> "$GITHUB_OUTPUT"
+          echo "patch_hash=$PATCH_HASH" >> "$GITHUB_OUTPUT"
+          echo "Resolved CASA6 commit: $SHORT_CASA, Patches: $PATCH_HASH"
+
+      - name: Restore cached CASA6 source
+        id: source-cache
+        uses: actions/cache@v5
+        with:
+          path: src/casa6
+          key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}-${{ steps.cache-date.outputs.week }}
+          restore-keys: |
+            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}-
+            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-
+            casa6-source-
+
+      - name: Clone or update CASA6 source
+        run: |
+          mkdir -p src
+          export CASA_BRANCH="${{ inputs.casa_branch || 'master' }}"
+          bash build-scripts/clone-repo.sh
+
+      - name: Restore cached HPG source
+        id: hpg-cache
+        uses: actions/cache@v5
+        with:
+          path: src/hpg
+          key: hpg-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.cache-date.outputs.week }}
+          restore-keys: |
+            hpg-source-${{ steps.casa-sha.outputs.casa_sha }}-
+            hpg-source-
+
+      - name: Clone or update HPG source
+        run: bash build-scripts/clone-hpg.sh
+
+      - name: Package source directory as artifact
+        run: |
+          mkdir -p /tmp/casa6-artifacts
+          tar -cf /tmp/casa6-artifacts/casa6-source.tar -C src casa6 hpg
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: casa6-source
+          path: /tmp/casa6-artifacts/casa6-source.tar
+          retention-days: 1
+
+  # ============================================================================
+  # Build and repair standalone wheels (Linux x86_64 GPU+MPI & macOS ARM64 MPI)
+  # ============================================================================
+  build-and-repair:
+    needs: prepare-source
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CASA_SKIP_REMOTE_UPDATE: "true"
+      CCACHE_MAXSIZE: "800M"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64 (Python 3.12, HPG+CUDA+MPI)
+            os: ubuntu-24.04
+            environment: build-linux-gpu-mpi
+            pixi_flags: --platform linux-64-cuda
+            arch: linux-64-cuda-mpi-cp312
+            repair_tool: auditwheel
+          - name: macOS ARM64 (Python 3.12, MPI)
+            os: macos-14
+            environment: build-arm-mpi
+            pixi_flags: ""
+            arch: osx-arm64-mpi-cp312
+            repair_tool: delocate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Pixi environment
+        uses: prefix-dev/setup-pixi@v0.10.2
+        env:
+          CONDA_OVERRIDE_CUDA: "12"
+        with:
+          pixi-version: latest
+          environments: ${{ matrix.environment }}
+          cache: true
+          cache-write: true
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v5
+        with:
+          path: tmp/ccache
+          key: ccache-publish-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-publish-${{ matrix.arch }}-
+            ccache-${{ matrix.arch }}-
+
+      - name: Download CASA6 source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: casa6-source
+          path: /tmp/casa6-artifacts
+
+      - name: Extract source code
+        run: |
+          mkdir -p src
+          tar -xf /tmp/casa6-artifacts/casa6-source.tar -C src
+          rm -f /tmp/casa6-artifacts/casa6-source.tar
+
+      - name: Build all components via Pixi
+        run: |
+          pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} build-all
+
+      - name: Bundle shared libraries into standalone wheels
+        run: |
+          mkdir -p wheelhouse
+          CONDA_PREFIX_DIR=$(pixi run -q ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} printenv CONDA_PREFIX)
+          echo "Discovered Conda Prefix: $CONDA_PREFIX_DIR"
+
+          # Use an isolated virtualenv for repair tools to avoid PEP 668 externally-managed errors
+          python3 -m venv /tmp/repair-tools-env
+          /tmp/repair-tools-env/bin/pip install --upgrade pip
+
+          if [[ "${{ matrix.repair_tool }}" == "auditwheel" ]]; then
+            echo "=== Installing auditwheel and patchelf ==="
+            /tmp/repair-tools-env/bin/pip install auditwheel patchelf
+
+            echo "=== Repairing casatools wheel via auditwheel ==="
+            export LD_LIBRARY_PATH="$CONDA_PREFIX_DIR/lib:${LD_LIBRARY_PATH:-}"
+            /tmp/repair-tools-env/bin/auditwheel repair src/casa6/casatools/dist/*.whl \
+              --plat manylinux_2_28_x86_64 \
+              --exclude libcuda.so.1 \
+              -w wheelhouse/
+
+            echo "=== Packaging casatasks wheel ==="
+            cp src/casa6/casatasks/dist/*.whl wheelhouse/
+
+          elif [[ "${{ matrix.repair_tool }}" == "delocate" ]]; then
+            echo "=== Installing delocate ==="
+            /tmp/repair-tools-env/bin/pip install delocate
+
+            echo "=== Repairing casatools wheel via delocate ==="
+            export DYLD_LIBRARY_PATH="$CONDA_PREFIX_DIR/lib:${DYLD_LIBRARY_PATH:-}"
+            /tmp/repair-tools-env/bin/delocate-wheel -v -w wheelhouse/ src/casa6/casatools/dist/*.whl
+
+            echo "=== Packaging casatasks wheel ==="
+            cp src/casa6/casatasks/dist/*.whl wheelhouse/
+          fi
+
+          echo "Standalone wheels ready for distribution:"
+          ls -lh wheelhouse/
+
+      - name: Verify standalone wheels in clean environment (outside Pixi)
+        run: |
+          python3 -m venv /tmp/clean-test-env
+          /tmp/clean-test-env/bin/pip install --upgrade pip
+          echo "Installing casatools standalone wheel..."
+          /tmp/clean-test-env/bin/pip install wheelhouse/casatools*.whl
+          echo "Installing casatasks standalone wheel (binary interface test)..."
+          /tmp/clean-test-env/bin/pip install wheelhouse/casatasks*.whl --no-deps
+          /tmp/clean-test-env/bin/python -c "
+          import casatools
+          print('✓ Standalone casatools verified, version:', casatools.version())
+          import casatasks
+          print('✓ Standalone casatasks imported successfully')
+          "
+
+      - name: Upload repaired wheels as artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: repaired-wheels-${{ matrix.arch }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+      - name: Save ccache
+        if: success()
+        uses: actions/cache/save@v5
+        with:
+          path: tmp/ccache
+          key: ccache-publish-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  # ============================================================================
+  # Publish wheels to GitHub Release and deploy PEP 503 index to GitHub Pages
+  # ============================================================================
+  publish-release:
+    needs: [prepare-source, build-and-repair]
+    name: Publish Release and PEP 503 Index
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download all repaired wheels
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/all-repaired-wheels
+          merge-multiple: true
+
+      - name: Collect and inspect wheels
+        run: |
+          mkdir -p dist
+          find /tmp/all-repaired-wheels -name "*.whl" -exec cp {} dist/ \;
+          echo "Collected standalone distribution wheels:"
+          ls -lh dist/
+
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.prepare-source.outputs.release_tag }}"
+          TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date }})"
+          BODY="Automated standalone CASA6 binary wheels for Python 3.12.
+
+          ### Platforms
+          - **Linux x86_64**: HPG + CUDA 12 + OpenMPI (\`manylinux_2_28_x86_64\`)
+          - **macOS Apple Silicon**: OpenMPI (\`macosx_11_0_arm64\`)
+
+          Built from upstream CASA6 commit: \`${{ needs.prepare-source.outputs.casa_sha }}\`.
+
+          ### Direct Pip Installation
+          \`\`\`bash
+          pip install --extra-index-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/simple/ casatools casatasks
+          \`\`\`
+          "
+          echo "Creating or updating release $TAG..."
+          gh release create "$TAG" dist/*.whl \
+            --title "$TITLE" \
+            --notes "$BODY" \
+            --prerelease || \
+          gh release upload "$TAG" dist/*.whl --clobber
+
+      - name: Generate PEP 503 HTML Simple Index
+        run: |
+          python3 build-scripts/build_pip_index.py \
+            --wheel-dir dist \
+            --output-dir dist_pages \
+            --repo "${{ github.repository }}" \
+            --release-tag "${{ needs.prepare-source.outputs.release_tag }}"
+
+      - name: Deploy Simple Index to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist_pages
+          clean: false
+
+      - name: Prune old releases (> retention days)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETENTION_DAYS: ${{ inputs.retention_days || 7 }}
+        run: |
+          echo "Pruning releases older than $RETENTION_DAYS days..."
+          CUTOFF=$(date -d "$RETENTION_DAYS days ago" +%s 2>/dev/null || date -v-${RETENTION_DAYS}d +%s)
+          gh release list --limit 100 --json tagName,createdAt \
+            | jq -r --arg cutoff "$CUTOFF" '.[] | select((.createdAt | fromdateiso8601) < ($cutoff | tonumber)) | .tagName' \
+            | while read -r tag; do
+                if [[ -n "$tag" && "$tag" == build-* ]]; then
+                  echo "Deleting old release $tag..."
+                  gh release delete "$tag" --yes --cleanup-tag || true
+                fi
+              done
+
