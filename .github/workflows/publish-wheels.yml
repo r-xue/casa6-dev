@@ -225,16 +225,31 @@ jobs:
 
       - name: Verify standalone wheels in clean environment (outside Pixi)
         run: |
+          # 1. Provide mock measures anchor and disable 800MB casarundata auto-download
+          mkdir -p /tmp/casa_mock_data/geodetic/IERSeop2000
+          cat << 'EOF' > /tmp/casasiteconfig.py
+          measurespath = "/tmp/casa_mock_data"
+          data_auto_update = False
+          measures_auto_update = False
+          EOF
+
+          # 2. Set up clean Python 3.12 virtual environment
           python3 -m venv /tmp/clean-test-env
           /tmp/clean-test-env/bin/python --version
           /tmp/clean-test-env/bin/pip install --upgrade pip
+
+          # 3. Install standalone casatools
           echo "Installing casatools standalone wheel..."
           CASATOOLS_WHL=$(find wheelhouse -name "casatools*.whl" | head -n 1)
           /tmp/clean-test-env/bin/pip install "$CASATOOLS_WHL"
-          echo "Installing casatasks standalone wheel (binary interface test)..."
+
+          # 4. Install standalone casatasks (casatools is already satisfied, pulls matplotlib/scipy)
+          echo "Installing casatasks standalone wheel..."
           CASATASKS_WHL=$(find wheelhouse -name "casatasks*.whl" | head -n 1)
-          /tmp/clean-test-env/bin/pip install "$CASATASKS_WHL" --no-deps
-          /tmp/clean-test-env/bin/python -c "
+          /tmp/clean-test-env/bin/pip install "$CASATASKS_WHL"
+
+          # 5. Verify standalone runtime import with zero casarundata download
+          CASASITECONFIG=/tmp/casasiteconfig.py /tmp/clean-test-env/bin/python -c "
           import casatools
           print('✓ Standalone casatools verified, version:', casatools.version())
           import casatasks
