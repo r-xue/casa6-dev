@@ -176,6 +176,11 @@ jobs:
         run: |
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} build-all
 
+      - name: Set up Python 3.12 for repair and verification
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Bundle shared libraries into standalone wheels
         run: |
           mkdir -p wheelhouse
@@ -221,6 +226,7 @@ jobs:
       - name: Verify standalone wheels in clean environment (outside Pixi)
         run: |
           python3 -m venv /tmp/clean-test-env
+          /tmp/clean-test-env/bin/python --version
           /tmp/clean-test-env/bin/pip install --upgrade pip
           echo "Installing casatools standalone wheel..."
           CASATOOLS_WHL=$(find wheelhouse -name "casatools*.whl" | head -n 1)
