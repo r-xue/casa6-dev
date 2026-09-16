@@ -15,6 +15,16 @@ on:
         required: false
         default: 7
         type: number
+      deploy_pages_only:
+        description: 'Skip build: fetch wheels from release tag and deploy Pages only'
+        required: false
+        default: false
+        type: boolean
+      target_tag:
+        description: 'Release tag to index (e.g. build-2026.09.16, empty for latest)'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: publish-standalone-wheels
@@ -31,6 +41,7 @@ jobs:
   # Prepare upstream CASA6 and HPG sources once (cached and shared)
   # ============================================================================
   prepare-source:
+    if: ${{ !inputs.deploy_pages_only }}
     name: Prepare Source Archive
     runs-on: ubuntu-latest
     outputs:
@@ -117,6 +128,7 @@ jobs:
   # ============================================================================
   build-and-repair:
     needs: prepare-source
+    if: ${{ !inputs.deploy_pages_only }}
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     env:
@@ -296,6 +308,7 @@ jobs:
   # ============================================================================
   publish-release:
     needs: [prepare-source, build-and-repair]
+    if: always() && !cancelled() && (inputs.deploy_pages_only || (needs.prepare-source.result == 'success' && needs.build-and-repair.result == 'success'))
     name: Publish Release and PEP 503 Index
     runs-on: ubuntu-latest
     environment:
@@ -305,11 +318,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Download all repaired wheels
+      - name: Resolve release tag
+        id: resolve-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.target_tag || needs.prepare-source.outputs.release_tag }}"
+          if [[ -z "$TAG" ]]; then
+            echo "Querying latest release tag from GitHub..."
+            TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          fi
+          if [[ -z "$TAG" ]]; then
+            TAG="build-$(date +'%Y.%m.%d')"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Operating on release tag: $TAG"
+
+      - name: Download all repaired wheels from artifacts
+        if: ${{ !inputs.deploy_pages_only }}
         uses: actions/download-artifact@v8
         with:
           path: /tmp/all-repaired-wheels
           merge-multiple: true
+
+      - name: Download wheels from GitHub Release
+        if: ${{ inputs.deploy_pages_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          mkdir -p /tmp/all-repaired-wheels
+          echo "Downloading wheels from release $TAG..."
+          gh release download "$TAG" --dir /tmp/all-repaired-wheels --pattern "*.whl"
 
       - name: Collect and inspect wheels
         run: |
@@ -319,11 +359,12 @@ jobs:
           ls -lh dist/
 
       - name: Publish to GitHub Release
+        if: ${{ !inputs.deploy_pages_only }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ needs.prepare-source.outputs.release_tag }}"
-          TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date }})"
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date || steps.resolve-tag.outputs.tag }})"
           BODY="Automated standalone CASA6 binary wheels for Python 3.12.
 
           ### Platforms
@@ -348,11 +389,12 @@ jobs:
 
       - name: Generate PEP 503 HTML Simple Index
         run: |
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
           python3 build-scripts/build_pip_index.py \
             --wheel-dir dist \
             --output-dir dist_pages \
             --repo "${{ github.repository }}" \
-            --release-tag "${{ needs.prepare-source.outputs.release_tag }}"
+            --release-tag "$TAG"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -373,6 +415,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Prune old releases (> retention days)
+        if: ${{ !inputs.deploy_pages_only }}
         env:
           GH_TOKEN: ${{ github.token }}
           RETENTION_DAYS: ${{ inputs.retention_days || 7 }}
