@@ -71,6 +71,10 @@ concurrency:
     (github.event.pull_request.head.ref || github.ref_name) }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   # ============================================================================
   # Dynamically determine matrix and prepare source code once (cached & shared)
@@ -411,6 +415,10 @@ jobs:
               f.write(f"matrix={json.dumps(filtered)}\n")
           PYEOF
 
+      - name: Compute rolling week for cache freshness
+        id: cache-date
+        run: echo "week=$(date +%Y-W%W)" >> "$GITHUB_OUTPUT"
+
       - name: Resolve upstream CASA6 commit SHA
         id: casa-sha
         run: |
@@ -434,8 +442,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: src/casa6
-          key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}
+          key: casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}-${{ steps.cache-date.outputs.week }}
           restore-keys: |
+            casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-${{ steps.casa-sha.outputs.patch_hash }}-
             casa6-source-${{ steps.casa-sha.outputs.casa_sha }}-
             casa6-source-
 
@@ -467,8 +476,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: src/hpg
-          key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}
+          key: hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}-${{ steps.cache-date.outputs.week }}
           restore-keys: |
+            hpg-source-${{ steps.hpg-sha.outputs.hpg_sha }}-
             hpg-source-
 
       - name: Clone or update HPG source
@@ -495,6 +505,16 @@ jobs:
           path: /tmp/casa6-artifacts/casa6-source.tar
           retention-days: 1
 
+      - name: Prune stale ccache entries to protect source cache
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Pruning ccache entries older than 3 days to preserve source cache quota..."
+          gh cache list --key "ccache-" --limit 100 --json id,createdAt 2>/dev/null \
+            | jq -r '.[] | select((.createdAt | fromdateiso8601) < (now - 259200)) | .id' \
+            | xargs -r -n 1 gh cache delete 2>/dev/null || true
+
   # ============================================================================
   # Build wheels according to the dynamically resolved matrix
   # ============================================================================
@@ -505,6 +525,7 @@ jobs:
     continue-on-error: ${{ matrix.experimental || false }}
     env:
       CASA_SKIP_REMOTE_UPDATE: "true"
+      CCACHE_MAXSIZE: "800M"
     strategy:
       fail-fast: false
       matrix:
@@ -522,9 +543,10 @@ jobs:
           pixi-version: latest
           environments: ${{ matrix.environment }}
           cache: true
+          cache-write: ${{ github.event_name != 'pull_request' }}
 
-      - name: Setup ccache
-        uses: actions/cache@v5
+      - name: Restore ccache
+        uses: actions/cache/restore@v5
         with:
           path: tmp/ccache
           key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -567,3 +589,10 @@ jobs:
             src/casa6/casatools/dist/*.whl
             src/casa6/casatasks/dist/*.whl
           if-no-files-found: error
+
+      - name: Save ccache
+        if: github.event_name != 'pull_request' && success()
+        uses: actions/cache/save@v5
+        with:
+          path: tmp/ccache
+          key: ccache-${{ matrix.arch }}-${{ matrix.environment }}-${{ github.run_id }}-${{ github.run_attempt }}

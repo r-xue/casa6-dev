@@ -15,6 +15,16 @@ on:
         required: false
         default: 7
         type: number
+      deploy_pages_only:
+        description: 'Skip build: fetch wheels from release tag and deploy Pages only'
+        required: false
+        default: false
+        type: boolean
+      target_tag:
+        description: 'Release tag to index (e.g. build-2026.09.16, empty for latest)'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: publish-standalone-wheels
@@ -24,12 +34,14 @@ permissions:
   contents: write
   actions: write
   pages: write
+  id-token: write
 
 jobs:
   # ============================================================================
   # Prepare upstream CASA6 and HPG sources once (cached and shared)
   # ============================================================================
   prepare-source:
+    if: ${{ !inputs.deploy_pages_only }}
     name: Prepare Source Archive
     runs-on: ubuntu-latest
     outputs:
@@ -116,6 +128,7 @@ jobs:
   # ============================================================================
   build-and-repair:
     needs: prepare-source
+    if: ${{ !inputs.deploy_pages_only }}
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     env:
@@ -176,6 +189,11 @@ jobs:
         run: |
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} build-all
 
+      - name: Set up Python 3.12 for repair and verification
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Bundle shared libraries into standalone wheels
         run: |
           mkdir -p wheelhouse
@@ -185,15 +203,18 @@ jobs:
           # Use an isolated virtualenv for repair tools to avoid PEP 668 externally-managed errors
           python3 -m venv /tmp/repair-tools-env
           /tmp/repair-tools-env/bin/pip install --upgrade pip
+          export PATH="/tmp/repair-tools-env/bin:$PATH"
+
+          echo "=== Cleaning intermediate build directories ==="
+          rm -rf src/casa6/casatasks/build src/casa6/casatools/casacore/build src/casa6/casatools/build src/casa6/build
 
           if [[ "${{ matrix.repair_tool }}" == "auditwheel" ]]; then
             echo "=== Installing auditwheel and patchelf ==="
-            /tmp/repair-tools-env/bin/pip install auditwheel patchelf
+            pip install auditwheel patchelf
 
             echo "=== Repairing casatools wheel via auditwheel ==="
             export LD_LIBRARY_PATH="$CONDA_PREFIX_DIR/lib:${LD_LIBRARY_PATH:-}"
-            /tmp/repair-tools-env/bin/auditwheel repair src/casa6/casatools/dist/*.whl \
-              --plat manylinux_2_28_x86_64 \
+            auditwheel repair src/casa6/casatools/dist/*.whl \
               --exclude libcuda.so.1 \
               -w wheelhouse/
 
@@ -202,11 +223,11 @@ jobs:
 
           elif [[ "${{ matrix.repair_tool }}" == "delocate" ]]; then
             echo "=== Installing delocate ==="
-            /tmp/repair-tools-env/bin/pip install delocate
+            pip install delocate
 
             echo "=== Repairing casatools wheel via delocate ==="
             export DYLD_LIBRARY_PATH="$CONDA_PREFIX_DIR/lib:${DYLD_LIBRARY_PATH:-}"
-            /tmp/repair-tools-env/bin/delocate-wheel -v -w wheelhouse/ src/casa6/casatools/dist/*.whl
+            delocate-wheel --sanitize-rpaths -v -w wheelhouse/ src/casa6/casatools/dist/*.whl
 
             echo "=== Packaging casatasks wheel ==="
             cp src/casa6/casatasks/dist/*.whl wheelhouse/
@@ -217,18 +238,56 @@ jobs:
 
       - name: Verify standalone wheels in clean environment (outside Pixi)
         run: |
+          # 1. Provide mock measures anchor and disable 800MB casarundata auto-download
+          mkdir -p /tmp/casa_mock_data/geodetic/IERSeop2000
+          cat << 'EOF' > /tmp/casasiteconfig.py
+          measurespath = "/tmp/casa_mock_data"
+          data_auto_update = False
+          measures_auto_update = False
+          EOF
+
+          # 2. Set up clean Python 3.12 virtual environment
           python3 -m venv /tmp/clean-test-env
+          /tmp/clean-test-env/bin/python --version
           /tmp/clean-test-env/bin/pip install --upgrade pip
+
+          # 3. Install standalone casatools
           echo "Installing casatools standalone wheel..."
-          /tmp/clean-test-env/bin/pip install wheelhouse/casatools*.whl
-          echo "Installing casatasks standalone wheel (binary interface test)..."
-          /tmp/clean-test-env/bin/pip install wheelhouse/casatasks*.whl --no-deps
-          /tmp/clean-test-env/bin/python -c "
+          CASATOOLS_WHL=$(find wheelhouse -name "casatools*.whl" | head -n 1)
+          /tmp/clean-test-env/bin/pip install "$CASATOOLS_WHL"
+
+          # 4. Install standalone casatasks (casatools is already satisfied, pulls matplotlib/scipy)
+          echo "Installing casatasks standalone wheel..."
+          CASATASKS_WHL=$(find wheelhouse -name "casatasks*.whl" | head -n 1)
+          /tmp/clean-test-env/bin/pip install "$CASATASKS_WHL"
+
+          # 5. Verify standalone runtime import with zero casarundata download
+          CASASITECONFIG=/tmp/casasiteconfig.py /tmp/clean-test-env/bin/python -c "
           import casatools
           print('✓ Standalone casatools verified, version:', casatools.version())
           import casatasks
           print('✓ Standalone casatasks imported successfully')
           "
+
+      - name: Create RHEL 8 compatibility alias
+        if: matrix.repair_tool == 'auditwheel'
+        run: |
+          echo "=== Creating RHEL 8 / Rocky 8 compatibility wheel alias ==="
+          # The binary symbols require glibc <= 2.27 and GLIBCXX <= 3.4.29.
+          # On RHEL 8 / Rocky 8 (glibc 2.28), users running within a Conda/Pixi
+          # environment or with 'module load gcc/11+' have GLIBCXX_3.4.29 available.
+          # Generating a manylinux_2_28_x86_64 alias allows standard pip to install it.
+          for whl in wheelhouse/casatools*manylinux*.whl; do
+            if [[ -f "$whl" ]]; then
+              alias_whl=$(echo "$whl" | sed -E 's/manylinux_[0-9]+_[0-9]+_x86_64/manylinux_2_28_x86_64/')
+              if [[ "$whl" != "$alias_whl" ]]; then
+                echo "Creating compatibility alias: $alias_whl from $(basename "$whl")"
+                cp -p "$whl" "$alias_whl"
+              fi
+            fi
+          done
+          echo "All wheels in wheelhouse for upload:"
+          ls -lh wheelhouse/
 
       - name: Upload repaired wheels as artifacts
         uses: actions/upload-artifact@v7
@@ -249,17 +308,48 @@ jobs:
   # ============================================================================
   publish-release:
     needs: [prepare-source, build-and-repair]
+    if: always() && !cancelled() && (inputs.deploy_pages_only || (needs.prepare-source.result == 'success' && needs.build-and-repair.result == 'success'))
     name: Publish Release and PEP 503 Index
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Download all repaired wheels
+      - name: Resolve release tag
+        id: resolve-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.target_tag || needs.prepare-source.outputs.release_tag }}"
+          if [[ -z "$TAG" ]]; then
+            echo "Querying latest release tag from GitHub..."
+            TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          fi
+          if [[ -z "$TAG" ]]; then
+            TAG="build-$(date +'%Y.%m.%d')"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Operating on release tag: $TAG"
+
+      - name: Download all repaired wheels from artifacts
+        if: ${{ !inputs.deploy_pages_only }}
         uses: actions/download-artifact@v8
         with:
           path: /tmp/all-repaired-wheels
           merge-multiple: true
+
+      - name: Download wheels from GitHub Release
+        if: ${{ inputs.deploy_pages_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          mkdir -p /tmp/all-repaired-wheels
+          echo "Downloading wheels from release $TAG..."
+          gh release download "$TAG" --dir /tmp/all-repaired-wheels --pattern "*.whl"
 
       - name: Collect and inspect wheels
         run: |
@@ -269,15 +359,16 @@ jobs:
           ls -lh dist/
 
       - name: Publish to GitHub Release
+        if: ${{ !inputs.deploy_pages_only }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ needs.prepare-source.outputs.release_tag }}"
-          TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date }})"
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date || steps.resolve-tag.outputs.tag }})"
           BODY="Automated standalone CASA6 binary wheels for Python 3.12.
 
           ### Platforms
-          - **Linux x86_64**: HPG + CUDA 12 + OpenMPI (\`manylinux_2_28_x86_64\`)
+          - **Linux x86_64**: HPG + CUDA 12 + OpenMPI (\`manylinux_2_28_x86_64\` and \`manylinux_2_3x_x86_64\`)
           - **macOS Apple Silicon**: OpenMPI (\`macosx_11_0_arm64\`)
 
           Built from upstream CASA6 commit: \`${{ needs.prepare-source.outputs.casa_sha }}\`.
@@ -286,6 +377,8 @@ jobs:
           \`\`\`bash
           pip install --extra-index-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/simple/ casatools casatasks
           \`\`\`
+
+          > **Note for RHEL 8 / Rocky 8 Users**: The \`manylinux_2_28_x86_64\` wheel requires \`GLIBCXX_3.4.29\`. Please install/run inside a Conda/Pixi environment or run \`module load gcc/11\` on your HPC cluster.
           "
           echo "Creating or updating release $TAG..."
           gh release create "$TAG" dist/*.whl \
@@ -296,20 +389,33 @@ jobs:
 
       - name: Generate PEP 503 HTML Simple Index
         run: |
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
           python3 build-scripts/build_pip_index.py \
             --wheel-dir dist \
             --output-dir dist_pages \
             --repo "${{ github.repository }}" \
-            --release-tag "${{ needs.prepare-source.outputs.release_tag }}"
+            --release-tag "$TAG"
 
-      - name: Deploy Simple Index to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          branch: gh-pages
-          folder: dist_pages
-          clean: false
+          path: dist_pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Log Deployment Summary
+        run: |
+          echo "### 🚀 GitHub Pages Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "PEP 503 Simple Index: [${{ steps.deployment.outputs.page_url }}simple/](${{ steps.deployment.outputs.page_url }}simple/)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Direct installation command:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo "pip install --extra-index-url ${{ steps.deployment.outputs.page_url }}simple/ casatools casatasks" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Prune old releases (> retention days)
+        if: ${{ !inputs.deploy_pages_only }}
         env:
           GH_TOKEN: ${{ github.token }}
           RETENTION_DAYS: ${{ inputs.retention_days || 7 }}
