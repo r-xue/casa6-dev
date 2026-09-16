@@ -24,6 +24,7 @@ permissions:
   contents: write
   actions: write
   pages: write
+  id-token: write
 
 jobs:
   # ============================================================================
@@ -297,6 +298,9 @@ jobs:
     needs: [prepare-source, build-and-repair]
     name: Publish Release and PEP 503 Index
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -350,12 +354,23 @@ jobs:
             --repo "${{ github.repository }}" \
             --release-tag "${{ needs.prepare-source.outputs.release_tag }}"
 
-      - name: Deploy Simple Index to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          branch: gh-pages
-          folder: dist_pages
-          clean: false
+          path: dist_pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Log Deployment Summary
+        run: |
+          echo "### 🚀 GitHub Pages Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "PEP 503 Simple Index: [${{ steps.deployment.outputs.page_url }}simple/](${{ steps.deployment.outputs.page_url }}simple/)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Direct installation command:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo "pip install --extra-index-url ${{ steps.deployment.outputs.page_url }}simple/ casatools casatasks" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Prune old releases (> retention days)
         env:
