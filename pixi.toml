@@ -1,5 +1,6 @@
 [workspace]
 name = "casa6-dev"
+requires-pixi = ">=0.82.1"
 channels = ["conda-forge"]
 platforms = [
     "linux-aarch64", 
@@ -97,7 +98,9 @@ log4cxx = "*"  # Logging framework for C++ (required by libsakura)
 setuptools = "*"
 setuptools_scm = "*"
 wheel = "*"
-pip = "*"
+pip = ">=26.2.2"
+ca-certificates = ">=2026.10.19"
+certifi = ">=2026.10.19"
 pytest = "*"
 casaconfig = "*"  # Pure Python package that casatools depends on
 pyerfa = "*"
