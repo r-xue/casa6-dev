@@ -7,6 +7,9 @@ site_name = "CASA6-Dev Documentation"
 site_description = "Modern build toolchain, multi-arch standalone wheels, and GPU acceleration for CASA 6."
 site_author = "@r-xue"
 site_url = "https://r-xue.github.io/casa6-dev/"
+repo_url = "https://github.com/r-xue/casa6-dev"
+repo_name = "r-xue/casa6-dev"
+extra_css = ["stylesheets/extra.css"]
 
 copyright = """
 Maintained by <a href="https://github.com/r-xue">/rx</a>.
@@ -37,6 +40,7 @@ nav = [
 # Theme configuration
 # ----------------------------------------------------------------------------
 [project.theme]
+variant = "modern"
 language = "en"
 
 features = [
@@ -47,6 +51,7 @@ features = [
     "content.footnote.tooltips",
     "content.tabs.link",
     "content.tooltips",
+    "header.autohide",
     "navigation.footer",
     "navigation.indexes",
     "navigation.instant",
@@ -58,19 +63,36 @@ features = [
     "search.highlight",
 ]
 
+[project.theme.icon]
+logo = "lucide/package"
+
 [project.theme.font]
 text = "Inter"
 code = "JetBrains Mono"
 
 [[project.theme.palette]]
+media = "(prefers-color-scheme)"
 scheme = "default"
+primary = "blue grey"
+accent = "teal"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "blue grey"
+accent = "teal"
 toggle.icon = "lucide/sun"
 toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
 scheme = "slate"
+primary = "blue grey"
+accent = "teal"
 toggle.icon = "lucide/moon"
-toggle.name = "Switch to light mode"
+toggle.name = "Switch to system preference"
 
 # ----------------------------------------------------------------------------
 # Markdown Extensions

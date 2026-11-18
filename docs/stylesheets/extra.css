@@ -1,0 +1,12 @@
+/* Subtle layout & surface tuning for CASA6-Dev docs */
+
+.md-grid {
+    max-width: 68rem;
+}
+
+.md-typeset pre > code,
+.md-typeset .admonition,
+.md-typeset details,
+.md-typeset .grid.cards > ul > li {
+    border-radius: 0.45rem;
+}
