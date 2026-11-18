@@ -10,6 +10,7 @@ site_url = "https://r-xue.github.io/casa6-dev/"
 repo_url = "https://github.com/r-xue/casa6-dev"
 repo_name = "r-xue/casa6-dev"
 extra_css = ["stylesheets/extra.css"]
+extra_javascript = ["javascripts/mermaid-zoom.js"]
 
 copyright = """
 Maintained by <a href="https://github.com/r-xue">/rx</a>.
@@ -73,24 +74,24 @@ code = "JetBrains Mono"
 [[project.theme.palette]]
 media = "(prefers-color-scheme)"
 scheme = "default"
-primary = "blue grey"
-accent = "teal"
+primary = "indigo"
+accent = "cyan"
 toggle.icon = "lucide/sun-moon"
 toggle.name = "Switch to light mode"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"
-primary = "blue grey"
-accent = "teal"
+primary = "indigo"
+accent = "cyan"
 toggle.icon = "lucide/sun"
 toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: dark)"
 scheme = "slate"
-primary = "blue grey"
-accent = "teal"
+primary = "indigo"
+accent = "cyan"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to system preference"
 
