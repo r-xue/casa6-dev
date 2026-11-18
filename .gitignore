@@ -16,3 +16,13 @@ tmp/
 
 # CASA runtime logs
 casa-*.log
+
+# Documentation build output
+site/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+

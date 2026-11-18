@@ -50,7 +50,7 @@ jobs:
       release_tag: ${{ steps.date.outputs.tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Compute release dates and tags
         id: date
@@ -143,19 +143,28 @@ jobs:
             environment: build-linux-gpu-mpi
             pixi_flags: --platform linux-64-cuda
             arch: linux-64-cuda-mpi-cp312
+            python_version: "3.12"
+            repair_tool: auditwheel
+          - name: Linux x86_64 (Python 3.14, HPG+CUDA+MPI)
+            os: ubuntu-24.04
+            environment: build-linux-gpu-mpi-314
+            pixi_flags: --platform linux-64-cuda
+            arch: linux-64-cuda-mpi-cp314
+            python_version: "3.14"
             repair_tool: auditwheel
           - name: macOS ARM64 (Python 3.12, MPI)
-            os: macos-14
+            os: macos-15
             environment: build-arm-mpi
             pixi_flags: ""
             arch: osx-arm64-mpi-cp312
+            python_version: "3.12"
             repair_tool: delocate
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Pixi environment
-        uses: prefix-dev/setup-pixi@v0.10.2
+        uses: prefix-dev/setup-pixi@v0.11.3
         env:
           CONDA_OVERRIDE_CUDA: "12"
         with:
@@ -189,10 +198,12 @@ jobs:
         run: |
           pixi run ${{ matrix.pixi_flags }} -e ${{ matrix.environment }} build-all
 
-      - name: Set up Python 3.12 for repair and verification
-        uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python_version }} for repair and verification
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python_version }}
+          check-latest: false
+          allow-prereleases: true
 
       - name: Bundle shared libraries into standalone wheels
         run: |
@@ -246,7 +257,7 @@ jobs:
           measures_auto_update = False
           EOF
 
-          # 2. Set up clean Python 3.12 virtual environment
+          # 2. Set up clean Python ${{ matrix.python_version }} virtual environment
           python3 -m venv /tmp/clean-test-env
           /tmp/clean-test-env/bin/python --version
           /tmp/clean-test-env/bin/pip install --upgrade pip
@@ -316,7 +327,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Resolve release tag
         id: resolve-tag
@@ -365,11 +376,11 @@ jobs:
         run: |
           TAG="${{ steps.resolve-tag.outputs.tag }}"
           TITLE="CASA6 Builds (${{ needs.prepare-source.outputs.release_date || steps.resolve-tag.outputs.tag }})"
-          BODY="Automated standalone CASA6 binary wheels for Python 3.12.
+          BODY="Automated standalone CASA6 binary wheels for Python 3.12 and Python 3.14.
 
           ### Platforms
-          - **Linux x86_64**: HPG + CUDA 12 + OpenMPI (\`manylinux_2_28_x86_64\` and \`manylinux_2_3x_x86_64\`)
-          - **macOS Apple Silicon**: OpenMPI (\`macosx_11_0_arm64\`)
+          - **Linux x86_64**: HPG + CUDA 12 + OpenMPI (Python 3.12 & 3.14, \`manylinux_2_28_x86_64\` and \`manylinux_2_3x_x86_64\`)
+          - **macOS Apple Silicon**: OpenMPI (Python 3.12, \`macosx_14_0_arm64\`)
 
           Built from upstream CASA6 commit: \`${{ needs.prepare-source.outputs.casa_sha }}\`.
 
@@ -387,6 +398,16 @@ jobs:
             --prerelease || \
           gh release upload "$TAG" dist/*.whl --clobber
 
+      - name: Set up Python for Documentation
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Build Zensical Documentation
+        run: |
+          pip install zensical
+          zensical build --clean
+
       - name: Generate PEP 503 HTML Simple Index
         run: |
           TAG="${{ steps.resolve-tag.outputs.tag }}"
@@ -396,19 +417,24 @@ jobs:
             --repo "${{ github.repository }}" \
             --release-tag "$TAG"
 
+      - name: Merge PEP 503 Simple Index into Documentation Site
+        run: |
+          cp -r dist_pages/simple site/
+
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: dist_pages
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Log Deployment Summary
         run: |
           echo "### 🚀 GitHub Pages Deployment" >> "$GITHUB_STEP_SUMMARY"
-          echo "PEP 503 Simple Index: [${{ steps.deployment.outputs.page_url }}simple/](${{ steps.deployment.outputs.page_url }}simple/)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Documentation**: [${{ steps.deployment.outputs.page_url }}](${{ steps.deployment.outputs.page_url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **PEP 503 Simple Index**: [${{ steps.deployment.outputs.page_url }}simple/](${{ steps.deployment.outputs.page_url }}simple/)" >> "$GITHUB_STEP_SUMMARY"
           echo "Direct installation command:" >> "$GITHUB_STEP_SUMMARY"
           echo '```bash' >> "$GITHUB_STEP_SUMMARY"
           echo "pip install --extra-index-url ${{ steps.deployment.outputs.page_url }}simple/ casatools casatasks" >> "$GITHUB_STEP_SUMMARY"
@@ -419,15 +445,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RETENTION_DAYS: ${{ inputs.retention_days || 7 }}
+          CURRENT_TAG: ${{ steps.resolve-tag.outputs.tag }}
         run: |
-          echo "Pruning releases older than $RETENTION_DAYS days..."
+          echo "Pruning releases older than $RETENTION_DAYS days (protecting $CURRENT_TAG)..."
           CUTOFF=$(date -d "$RETENTION_DAYS days ago" +%s 2>/dev/null || date -v-${RETENTION_DAYS}d +%s)
-          gh release list --limit 100 --json tagName,createdAt \
-            | jq -r --arg cutoff "$CUTOFF" '.[] | select((.createdAt | fromdateiso8601) < ($cutoff | tonumber)) | .tagName' \
+          if [[ -z "$CUTOFF" ]]; then
+            echo "Error: Could not compute cutoff timestamp."
+            exit 1
+          fi
+
+          gh release list --limit 100 --json tagName \
+            | jq -r '.[] | .tagName' \
             | while read -r tag; do
-                if [[ -n "$tag" && "$tag" == build-* ]]; then
-                  echo "Deleting old release $tag..."
-                  gh release delete "$tag" --yes --cleanup-tag || true
+                if [[ -n "$tag" && "$tag" == build-* && "$tag" != "$CURRENT_TAG" ]]; then
+                  # Parse date from tag format: build-YYYY.MM.DD -> YYYY-MM-DD
+                  TAG_DATE="${tag#build-}"
+                  TAG_EPOCH=$(date -d "${TAG_DATE//./-}" +%s 2>/dev/null || true)
+                  if [[ -n "$TAG_EPOCH" && "$TAG_EPOCH" -lt "$CUTOFF" ]]; then
+                    echo "Deleting old release $tag (date: $TAG_DATE < cutoff)..."
+                    gh release delete "$tag" --yes --cleanup-tag || true
+                  fi
                 fi
               done
+
 

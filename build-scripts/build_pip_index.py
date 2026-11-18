@@ -130,7 +130,7 @@ def generate_landing_html(projects: list, repo: str) -> str:
         '</head>',
         '<body>',
         '  <h1>CASA6 Self-Contained Binary Wheels</h1>',
-        f'  <p>Automated standalone Python 3.12 wheel builds for <code>casatools</code> and <code>casatasks</code> from <a href="https://github.com/{html.escape(repo)}">{html.escape(repo)}</a>.</p>',
+        f'  <p>Automated standalone wheel builds for <code>casatools</code> and <code>casatasks</code> from <a href="https://github.com/{html.escape(repo)}">{html.escape(repo)}</a>.</p>',
         '  <div class="card">',
         '    <h2>🚀 Quick Installation</h2>',
         '    <p>Install the latest standalone wheels directly via standard <code>pip</code> without Conda or Pixi:</p>',
