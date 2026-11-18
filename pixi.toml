@@ -1,5 +1,6 @@
 [workspace]
 name = "casa6-dev"
+requires-pixi = ">=0.82.1"
 channels = ["conda-forge"]
 platforms = [
     "linux-aarch64", 
@@ -97,7 +98,9 @@ log4cxx = "*"  # Logging framework for C++ (required by libsakura)
 setuptools = "*"
 setuptools_scm = "*"
 wheel = "*"
-pip = "*"
+pip = ">=26.2.2"
+ca-certificates = ">=2026.10.19"
+certifi = ">=2026.10.19"
 pytest = "*"
 casaconfig = "*"  # Pure Python package that casatools depends on
 pyerfa = "*"
@@ -318,6 +321,8 @@ build-arm-mpi       = {features = ["arm-mac", "py312", "mpi"], solve-group = "ar
 build-intel-mpi     = {features = ["intel-mac", "py312", "mpi"], solve-group = "intel-mpi-312"}
 linux-gpu-mpi       = {features = ["linux", "py312", "dev", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-312"}
 build-linux-gpu-mpi = {features = ["linux", "py312", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-312"}
+linux-gpu-mpi-314       = {features = ["linux", "py314", "dev", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-314"}
+build-linux-gpu-mpi-314 = {features = ["linux", "py314", "gpu", "mpi"], platforms = ["linux-64-cuda"], solve-group = "linux-gpu-mpi-314"}
 
 # ============================================================
 # Tasks
@@ -375,6 +380,10 @@ description = "Build for Linux with OpenMPI support (default Python 3.12)"
 cmd = "pixi run --platform linux-64-cuda -e linux-gpu-mpi build-all"
 description = "Build for Linux with GPU and OpenMPI (default Python 3.12)"
 
+[tasks.build-gpu-mpi-314]
+cmd = "pixi run --platform linux-64-cuda -e linux-gpu-mpi-314 build-all"
+description = "Build for Linux with GPU and OpenMPI (Python 3.14)"
+
 [tasks.build-arm]
 cmd = "pixi run -e arm-mac build-all"
 description = "Build for ARM Mac (default Python 3.11)"
@@ -419,3 +428,13 @@ description = "Build for Intel Mac with Python 3.12"
 [tasks.build-intel-313]
 cmd = "pixi run -e intel-313 build-all"
 description = "Build for Intel Mac with Python 3.13"
+
+# ---- Documentation tasks (Zensical) ----
+[tasks.docs-build]
+cmd = "pixi exec --spec zensical zensical build --clean"
+description = "Build static HTML documentation using Zensical"
+
+[tasks.docs-serve]
+cmd = "pixi exec --spec zensical zensical serve"
+description = "Run local live-reload documentation server using Zensical"
+

@@ -1,0 +1,175 @@
+/* Subtle layout & surface tuning for CASA6-Dev docs */
+
+.md-grid {
+    max-width: 68rem;
+}
+
+.md-typeset pre > code,
+.md-typeset .admonition,
+.md-typeset details,
+.md-typeset .grid.cards > ul > li {
+    border-radius: 0.45rem;
+}
+
+/* ==========================================================================
+   Mermaid Lightbox & Interactive Zoom
+   ========================================================================== */
+
+.mermaid,
+.md-typeset .mermaid,
+pre.mermaid {
+    position: relative;
+    cursor: zoom-in;
+    padding: 1.15rem 1rem;
+    border-radius: 0.55rem;
+    border: 1px solid color-mix(in oklab, var(--md-default-fg-color, #000) 12%, transparent);
+    background: color-mix(in oklab, var(--md-default-fg-color, #000) 2%, transparent);
+    transition: outline 0.15s ease, border-color 0.15s ease;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.mermaid:hover {
+    outline: 1.5px dashed var(--md-accent-fg-color, #00bcd4);
+    outline-offset: 4px;
+}
+
+.mermaid::after {
+    content: "Click to zoom";
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 0.65rem;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--md-default-bg-color, #fff);
+    color: var(--md-default-fg-color--light, #666);
+    border: 1px solid var(--md-default-fg-color--lightest, #ddd);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    font-family: var(--md-text-font-family, sans-serif);
+    z-index: 5;
+}
+
+.mermaid:hover::after {
+    opacity: 0.95;
+}
+
+dialog.mermaid-lightbox {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(92vw, 1280px);
+    height: 84vh;
+    max-width: 92vw;
+    max-height: 84vh;
+    padding: 0;
+    border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.25));
+    border-radius: 12px;
+    background: var(--md-default-bg-color, #ffffff);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    user-select: none;
+}
+
+dialog.mermaid-lightbox:modal {
+    overscroll-behavior: contain;
+}
+
+dialog.mermaid-lightbox::backdrop {
+    background: rgba(10, 15, 25, 0.78);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+.mermaid-lightbox-toolbar {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    display: flex;
+    gap: 8px;
+    z-index: 2;
+}
+
+.mermaid-lightbox-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.3));
+    background: var(--md-default-bg-color, rgba(255, 255, 255, 0.9));
+    color: var(--md-default-fg-color, #222);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.mermaid-lightbox-btn:hover {
+    background: var(--md-accent-fg-color--transparent, rgba(0, 188, 212, 0.15));
+    transform: scale(1.05);
+}
+
+.mermaid-lightbox-btn.ml-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.mermaid-lightbox-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    color: var(--md-default-fg-color--light, #666);
+    background: var(--md-default-bg-color, rgba(255, 255, 255, 0.85));
+    border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.2));
+    padding: 4px 12px;
+    border-radius: 20px;
+    z-index: 2;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.mermaid-lightbox-viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.mermaid-lightbox-content {
+    transform-origin: center center;
+    transition: transform 0.08s ease-out;
+    will-change: transform;
+    padding: 28px 36px;
+    display: inline-block;
+}
+
+.mermaid-lightbox-content.mermaid {
+    margin: 0;
+    border: none;
+    background: transparent;
+    cursor: default !important;
+    outline: none !important;
+}
+
+.mermaid-lightbox-content.mermaid::after {
+    display: none !important;
+}
+
+.mermaid-lightbox-content svg {
+    display: block;
+    overflow: visible;
+    flex-shrink: 0;
+}
